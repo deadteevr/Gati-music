@@ -1,0 +1,86 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+// Collection: users
+// Fields:
+//   - uid: string (immutable)
+//   - role: 'artist' | 'admin' (immutable for artist)
+//   - name: string
+//   - email: string (immutable)
+//   - createdAt: string (immutable)
+//
+// Collection: submissions
+// Fields: uid, title, mainArtist, etc... status, createdAt
+//
+// Collection: royalties
+// Fields: uid, reportMonth, amount, reportLink, createdAt
+//
+// Collection: withdrawals
+// Fields: uid, bankAccount, upiId, amount, status, createdAt
+//
+// Collection: notifications
+// Fields: uid, message, read, createdAt
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+       return request.auth != null;
+    }
+    function isOwner(userId) {
+       return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isDocOwner() {
+       return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+    function isAdmin() {
+      // Allow super-admin by email bypass or dynamically checking the user document's mapped role
+      return isAuthenticated() && (
+        (request.auth.token.email == "deadteevr@gmail.com") || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && (
+        (isOwner(userId) && request.resource.data.uid == userId && request.resource.data.role == 'artist') || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        (isOwner(userId) && request.resource.data.role == resource.data.role) || 
+        isAdmin()
+      );
+    }
+
+    match /submissions/{submissionId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      // Artists can't change status.
+      allow update: if isAuthenticated() && ((isDocOwner() && request.resource.data.status == resource.data.status) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /royalties/{royaltyId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'Pending';
+      // Only admin can mark as Paid
+      allow update: if isAuthenticated() && isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isDocOwner() || isAdmin();
+      // Admin creates notifications
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()); // Allow user to mark as read
+      allow delete: if isAdmin();
+    }
+  }
+}

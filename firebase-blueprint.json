@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile, representing either an artist or admin.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The auth ID" },
+        "role": { "type": "string", "enum": ["artist", "admin"] },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role", "name", "email", "createdAt"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "A music distribution submission request.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "title": { "type": "string" },
+        "mainArtist": { "type": "string" },
+        "featuringArtists": { "type": "array", "items": { "type": "string" } },
+        "labelName": { "type": "string" },
+        "pLine": { "type": "string" },
+        "cLine": { "type": "string" },
+        "lyricist": { "type": "string" },
+        "producer": { "type": "string" },
+        "otherCredits": { "type": "string" },
+        "scheduleDate": { "type": "string" },
+        "mainSpotifyLink": { "type": "string" },
+        "featureSpotifyLinks": { "type": "string" },
+        "excludedPlatforms": { "type": "string" },
+        "status": { "type": "string", "enum": ["Reviewing", "Processing", "Sent to Stores", "Live"] },
+        "audioUrl": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "title", "mainArtist", "pLine", "cLine", "lyricist", "status", "createdAt"]
+    },
+    "Royalty": {
+      "title": "Royalty",
+      "description": "Monthly royalty report for an artist.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "reportMonth": { "type": "string" },
+        "amount": { "type": "number" },
+        "reportLink": { "type": "string" },
+        "streamsBreakdown": { "type": "string", "description": "JSON string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "reportMonth", "amount", "createdAt"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "A withdrawal request from an artist.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "bankAccount": { "type": "string" },
+        "upiId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Paid"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "amount", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification pushed to the artist dashboard.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "message", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Store users"
+    },
+    "/submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/Submission" },
+      "description": "Store song submissions"
+    },
+    "/royalties/{royaltyId}": {
+      "schema": { "$ref": "#/entities/Royalty" },
+      "description": "Store royalty records"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/Withdrawal" },
+      "description": "Store withdrawal requests"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Store user notifications"
+    }
+  }
+}
