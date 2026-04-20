@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -26,8 +26,8 @@ export default function AdminArtists() {
     const q = query(collection(db, 'users'));
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs
-        .map(d => ({ uid: d.id, ...d.data() }))
-        .filter(user => user.role !== 'admin');
+        .map(d => ({ uid: d.id, ...(d.data() as any) }))
+        .filter((user: any) => user.role !== 'admin');
       setArtists(list);
     });
     return unsub;

@@ -5,24 +5,6 @@ import { Users, Music, Activity, PlayCircle, IndianRupee } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
-const MOCK_EARNINGS_DATA = [
-  { name: 'Jan', earnings: 4000 },
-  { name: 'Feb', earnings: 3000 },
-  { name: 'Mar', earnings: 5000 },
-  { name: 'Apr', earnings: 2780 },
-  { name: 'May', earnings: 8900 },
-  { name: 'Jun', earnings: 12000 },
-];
-
-const MOCK_STREAMS_DATA = [
-  { name: 'Jan', streams: 150000 },
-  { name: 'Feb', streams: 230000 },
-  { name: 'Mar', streams: 180000 },
-  { name: 'Apr', streams: 290000 },
-  { name: 'May', streams: 320000 },
-  { name: 'Jun', streams: 450000 },
-];
-
 export default function AdminHome() {
   const [stats, setStats] = useState({
     totalArtists: 0,
@@ -33,6 +15,8 @@ export default function AdminHome() {
     pendingWithdrawals: 0
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [monthlyEarningsData, setMonthlyEarningsData] = useState<any[]>([]);
+  const [monthlyStreamsData, setMonthlyStreamsData] = useState<any[]>([]);
 
   useEffect(() => {
     // Fetch users
@@ -75,11 +59,57 @@ export default function AdminHome() {
       });
       setStats(s => ({ ...s, pendingWithdrawals: pending }));
     });
+
+    // Fetch global Royalties for Charts
+    const qRoyalties = query(collection(db, 'royalties'));
+    const unsubRoyalties = onSnapshot(qRoyalties, (snap) => {
+      const earningsByMonth: Record<string, number> = {};
+      const streamsByMonth: Record<string, number> = {};
+
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const month = data.reportMonth;
+        if (!month) return;
+
+        // Aggregate Earnings
+        earningsByMonth[month] = (earningsByMonth[month] || 0) + Number(data.amount || 0);
+
+        // Aggregate Streams
+        if (data.streamsBreakdown) {
+          try {
+            const parsed = JSON.parse(data.streamsBreakdown);
+            let monthStreams = 0;
+            for (const value of Object.values(parsed)) {
+              monthStreams += Number(value);
+            }
+            streamsByMonth[month] = (streamsByMonth[month] || 0) + monthStreams;
+          } catch(e) {}
+        }
+      });
+
+      // Format and sort Data
+      const formatData = (obj: Record<string, number>, key: string) => {
+        const arr = Object.keys(obj).map(month => ({
+          name: month.split(' ')[0].substring(0, 3) + (month.split(' ')[1] ? ' ' + month.split(' ')[1].substring(2, 4) : ''), // e.g. "Jun 24"
+          rawMonth: month,
+          [key]: obj[month]
+        }));
+        
+        arr.sort((a, b) => {
+           return new Date(`${a.rawMonth} 1`).getTime() - new Date(`${b.rawMonth} 1`).getTime();
+        });
+        return arr;
+      };
+
+      setMonthlyEarningsData(formatData(earningsByMonth, 'earnings'));
+      setMonthlyStreamsData(formatData(streamsByMonth, 'streams'));
+    });
     
     return () => {
       unsubUsers();
       unsubSongs();
       unsubWithdrawals();
+      unsubRoyalties();
     };
   }, []);
 
@@ -104,32 +134,44 @@ export default function AdminHome() {
       <div className="grid lg:grid-cols-2 gap-8">
         <div className="bg-[#111] p-6 border border-[#333]">
            <h2 className="text-lg font-display uppercase tracking-widest text-green-400 mb-6">Monthly Earnings</h2>
-           <div className="h-64">
-             <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={MOCK_EARNINGS_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                  <XAxis dataKey="name" stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
-                  <Tooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', color: '#fff'}} itemStyle={{color: '#4ade80'}} />
-                  <Line type="monotone" dataKey="earnings" stroke="#4ade80" strokeWidth={2} dot={{fill: '#111', stroke: '#4ade80', strokeWidth: 2}} />
-                </LineChart>
-             </ResponsiveContainer>
-           </div>
+           {monthlyEarningsData.length > 0 ? (
+             <div className="h-64">
+               <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyEarningsData.slice(-12)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="name" stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                    <Tooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', color: '#fff'}} itemStyle={{color: '#4ade80'}} />
+                    <Line type="monotone" dataKey="earnings" stroke="#4ade80" strokeWidth={2} dot={{fill: '#111', stroke: '#4ade80', strokeWidth: 2}} />
+                  </LineChart>
+               </ResponsiveContainer>
+             </div>
+           ) : (
+             <div className="h-64 flex items-center justify-center border border-dashed border-[#333]">
+               <p className="text-gray-500 font-sans text-sm">Not enough data for chart.</p>
+             </div>
+           )}
         </div>
 
         <div className="bg-[#111] p-6 border border-[#333]">
            <h2 className="text-lg font-display uppercase tracking-widest text-[#9d4edd] mb-6">Monthly Streams</h2>
-           <div className="h-64">
-             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MOCK_STREAMS_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                  <XAxis dataKey="name" stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000)}k`} />
-                  <Tooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', color: '#fff'}} itemStyle={{color: '#9d4edd'}} cursor={{fill: '#222'}} />
-                  <Bar dataKey="streams" fill="#9d4edd" radius={[4, 4, 0, 0]} />
-                </BarChart>
-             </ResponsiveContainer>
-           </div>
+           {monthlyStreamsData.length > 0 ? (
+             <div className="h-64">
+               <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyStreamsData.slice(-12)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="name" stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#666" tick={{fill: '#666', fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                    <Tooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', color: '#fff'}} itemStyle={{color: '#9d4edd'}} cursor={{fill: '#222'}} />
+                    <Bar dataKey="streams" fill="#9d4edd" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+               </ResponsiveContainer>
+             </div>
+           ) : (
+             <div className="h-64 flex items-center justify-center border border-dashed border-[#333]">
+               <p className="text-gray-500 font-sans text-sm">Not enough data for chart.</p>
+             </div>
+           )}
         </div>
       </div>
 

@@ -1,211 +1,878 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Headphones, Music, Zap } from 'lucide-react';
+import { 
+  ArrowRight, 
+  Headphones, 
+  Music, 
+  Zap, 
+  Globe2,
+  Clock,
+  ShieldCheck,
+  PenTool,
+  UploadCloud,
+  CheckCircle2,
+  ChevronDown,
+  Menu,
+  X,
+  MessageCircle,
+  PiggyBank,
+  BarChart3,
+  Activity,
+  Play,
+  CheckCheck,
+  TrendingUp
+} from 'lucide-react';
 
 const WHATSAPP_NUMBER = "917626841258";
 
-function WhatsAppCheckout({ plan, amount }: { plan: string; amount: string }) {
-  const text = encodeURIComponent(`Hi, I want to purchase ${plan} (₹${amount}).`);
-  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${text}`;
+// --- Animation Variants ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }
+};
+
+// --- Components ---
+
+function Logo({ className = "", isScrolled = false }: { className?: string; isScrolled?: boolean }) {
+  return (
+    <div className={`font-display font-black tracking-tighter flex items-center gap-1 group transition-all duration-500 hover:scale-105 ${className}`}>
+      <span className={`text-[#B6FF00] text-3xl md:text-4xl transition-all duration-500 ${isScrolled ? 'drop-shadow-[0_0_20px_rgba(182,255,0,0.8)]' : 'drop-shadow-[0_0_10px_rgba(182,255,0,0.5)] group-hover:drop-shadow-[0_0_20px_rgba(182,255,0,0.9)]'}`}>gati</span>
+      <span className="w-2 h-2 rounded-full bg-[#8B5CF6] mt-2 md:mt-3 inline-block shadow-[0_0_10px_rgba(139,92,246,0.8)] group-hover:shadow-[0_0_20px_rgba(139,92,246,1)] transition-all duration-500"></span>
+    </div>
+  );
+}
+
+function WhatsAppButton({ text, className = "" }: { text: string, className?: string }) {
+  const msg = encodeURIComponent("Hi, I want to distribute my music through Gati.");
+  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
+  return (
+    <a 
+      href={href} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className={`inline-flex items-center justify-center gap-2 font-display uppercase tracking-widest font-bold transition-all ${className}`}
+    >
+      <MessageCircleIcon /> {text}
+    </a>
+  );
+}
+
+function WhatsAppCheckout({ plan, highlight }: { plan: string, highlight?: boolean }) {
+  const msg = encodeURIComponent(`Hi, I want to purchase the ${plan} plan.`);
+  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
   
   return (
     <a 
       href={href} 
       target="_blank" 
       rel="noopener noreferrer"
-      className="block w-full py-4 text-center font-display font-bold uppercase tracking-widest text-[#050505] transition-colors hover:bg-white bg-[#ccff00]"
+      className={`block w-full py-4 text-center font-display font-bold uppercase tracking-widest transition-all rounded-full ${highlight ? 'bg-[#B6FF00] text-black hover:bg-white hover:scale-105 shadow-[0_0_20px_rgba(182,255,0,0.3)] duration-300' : 'bg-[#222] border border-[#333] text-white hover:bg-[#333] hover:border-[#555]'}`}
     >
-      Purchase via WhatsApp
+      Buy Now
     </a>
   );
 }
 
+const MessageCircleIcon = () => (
+  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+  </svg>
+);
+
 export default function LandingPage() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#050505] text-[#f5f5f5] overflow-x-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full p-6 flex justify-between items-center z-50 mix-blend-difference">
-        <div className="text-3xl font-display font-black tracking-tighter text-[#ccff00]">GATI.</div>
-        <Link to="/login" className="px-6 py-2 border-2 border-[#ccff00] text-[#ccff00] hover:bg-[#ccff00] hover:text-[#050505] font-display font-bold tracking-widest uppercase text-xs transition-colors">
-          Artist Login
-        </Link>
+    <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] selection:bg-[#B6FF00] selection:text-black font-sans">
+      
+      {/* Navbar */}
+      <nav className={`fixed top-0 w-full px-6 flex justify-between items-center z-50 transition-all duration-300 ${isScrolled ? 'bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-[#222] shadow-[0_4px_30px_rgba(0,0,0,0.5)] py-3' : 'bg-transparent py-5'}`}>
+        <Logo isScrolled={isScrolled} />
+        
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-8 font-display uppercase tracking-widest text-xs font-bold text-gray-400">
+          <a href="#how-it-works" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">How it Works</a>
+          <a href="#features" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Why Us</a>
+          <a href="#pricing" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Plans</a>
+          <a href="#faq" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">FAQ</a>
+        </div>
+
+        <div className="hidden md:flex items-center gap-6">
+          <Link to="/login" className="font-display uppercase tracking-widest text-xs font-bold text-white hover:text-[#B6FF00] hover:drop-shadow-[0_0_8px_rgba(182,255,0,0.5)] transition-all">Artist Login</Link>
+          <a 
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi`} target="_blank" rel="noopener noreferrer"
+            className="border border-[#B6FF00]/50 text-[#B6FF00] px-5 py-2.5 rounded-full font-display uppercase tracking-widest text-xs font-bold hover:bg-[#B6FF00] hover:text-black hover:shadow-[0_0_15px_rgba(182,255,0,0.4)] transition-all duration-300"
+          >
+            Contact
+          </a>
+        </div>
+
+        {/* Mobile Menu Toggle */}
+        <button className="md:hidden text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+        </button>
       </nav>
 
+      {/* Mobile Nav Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-40 bg-[#0a0a0a] pt-24 px-6 flex flex-col gap-6"
+          >
+            <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">How it Works</a>
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">Why Gati</a>
+            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">Plans & Pricing</a>
+            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">FAQ</a>
+            <Link to="/login" className="text-2xl font-display uppercase tracking-widest text-[#ccff00] border-b border-[#333] pb-4">Artist Login</Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
-      <header className="relative pt-40 pb-20 px-6 sm:px-12 md:px-24 flex flex-col justify-center items-start min-h-[90vh]">
-        <motion.div 
-          initial={{ opacity: 0, y: 50, skewX: -5 }} animate={{ opacity: 1, y: 0, skewX: -5 }} transition={{ duration: 0.6 }}
-          className="mb-6 inline-block bg-[#ccff00] text-[#050505] px-4 py-2 font-bold font-display uppercase tracking-widest text-sm"
-        >
-          For the Artist, By the Artists
-        </motion.div>
+      <section className="relative pt-32 pb-20 px-6 sm:px-12 flex flex-col items-center justify-center min-h-[90vh] text-center overflow-hidden">
+        {/* Animated Gradient Background & Noise */}
+        <div className="absolute inset-0 bg-[#0A0A0A] -z-20"></div>
+        <div className="absolute top-1/4 left-1/4 w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-gradient-to-tr from-[#8B5CF6]/20 to-[#B6FF00]/20 rounded-full mix-blend-screen filter blur-[80px] md:blur-[120px] opacity-40 md:opacity-60 animate-pulse -z-10"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-gradient-to-bl from-[#3B82F6]/20 to-[#8B5CF6]/20 rounded-full mix-blend-screen filter blur-[60px] md:blur-[100px] opacity-30 md:opacity-50 animate-pulse -z-10" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute inset-0 opacity-[0.03] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] -z-10 bg-repeat"></div>
         
-        <motion.h1 
-          className="text-[12vw] sm:text-[10vw] leading-[0.85] font-display uppercase tracking-tighter mb-8"
-          initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }}
-        >
-          Release.<br/>
-          <span className="text-transparent stroke-text" style={{ WebkitTextStroke: "2px #ccff00" }}>Worldwide.</span><br/>
-          <span className="text-[#9d4edd]">Fast.</span>
-        </motion.h1>
+        {/* Subtle Watermark Logo */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[30vw] font-display font-black text-white/[0.01] leading-none pointer-events-none select-none -z-10 tracking-tighter mix-blend-overlay">
+          gati.
+        </div>
 
-        <motion.div className="max-w-xl text-lg sm:text-xl font-sans text-gray-400 mb-12"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.4 }}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          className="relative z-10"
         >
-          <p className="mb-2 text-white">Gati is a fast and artist-first music distribution service.</p>
-          <p>We deliver your music worldwide with speed, accuracy, and real human support.</p>
-        </motion.div>
-
-        <motion.a 
-          href="#pricing"
-          className="flex items-center gap-4 bg-white text-[#050505] px-10 py-5 font-display font-bold text-xl uppercase tracking-wider hover:bg-[#ccff00] transition-colors"
-          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.6 }}
-        >
-          Start Releasing Now <ArrowRight size={24} />
-        </motion.a>
-      </header>
-
-      {/* Features / Why Choose Us */}
-      <section className="py-24 px-6 md:px-24 bg-[#1a1a1a] border-t border-[#333]">
-        <div className="grid md:grid-cols-2 gap-16">
-          <div>
-            <h2 className="text-6xl md:text-8xl font-display uppercase tracking-tighter mb-8 text-[#ccff00]">Why<br/>Gati?</h2>
-            <p className="text-xl text-gray-400">Best choice in the music distribution industry. Built for speed, trust, and artist growth.</p>
+          <div className="mb-8 inline-block border border-[#B6FF00]/40 text-[#B6FF00] px-5 py-2.5 font-bold font-display uppercase tracking-widest text-xs bg-[#B6FF00]/5 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(182,255,0,0.15)]">
+            For the Artist, By the Artists
           </div>
           
-          <div className="grid sm:grid-cols-2 gap-8">
-            <Feature 
-              icon={<Headphones className="text-[#9d4edd]" size={32} />}
-              title="250+ Platforms" 
-              desc="Get on Spotify, Apple Music, and globally recognized audio/video platforms instantly."
+          <h1 className="text-[9vw] sm:text-[5.5vw] md:text-7xl leading-[0.9] font-display uppercase tracking-tighter mb-8 max-w-5xl mx-auto text-white">
+            Gati Music Distribution <br className="hidden md:block"/> <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#B6FF00] via-[#8B5CF6] to-[#3B82F6]">Release Music Worldwide</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-gray-400 font-sans max-w-2xl mx-auto mb-12 leading-relaxed">
+            The fastest music distribution service in India. Upload your music to Spotify, Apple Music & 250+ platforms with affordable distribution for independent artists. Fast approval and direct WhatsApp support.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <WhatsAppButton 
+              text="Start Now on WhatsApp" 
+              className="bg-[#B6FF00] text-black w-full sm:w-auto px-8 py-5 rounded-md hover:bg-white hover:scale-105 hover:shadow-[0_0_30px_rgba(182,255,0,0.4)] duration-300" 
             />
-            <Feature 
-              icon={<Zap className="text-[#ccff00]" size={32} />}
-              title="Budget Friendly" 
-              desc="One of the most budget-friendly services in India without compromising support."
+            <a 
+              href="#pricing"
+              className="inline-flex items-center justify-center gap-2 font-display uppercase tracking-widest font-bold border border-[#333] bg-[#0A0A0A]/50 backdrop-blur-md text-white w-full sm:w-auto px-8 py-5 rounded-md hover:bg-[#111] hover:border-[#8B5CF6] hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
+            >
+              View Plans
+            </a>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Trust Bar */}
+      <section className="relative py-20 border-y border-[#1a1a1a] bg-[#0A0A0A] overflow-hidden">
+        {/* Animated Waveform Background */}
+        <motion.div 
+          animate={{ opacity: [0.05, 0.2, 0.05] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-0 flex items-center justify-center gap-2 md:gap-3 px-4 mix-blend-screen pointer-events-none"
+        >
+          {[...Array(40)].map((_, i) => (
+            <motion.div 
+              key={i} 
+              className="w-1 md:w-2 bg-gradient-to-t from-[#B6FF00] to-[#8B5CF6] rounded-full" 
+              animate={{ height: ['20%', '80%', '40%', '100%', '30%'] }}
+              transition={{ repeat: Infinity, duration: 1.5 + Math.random() * 2, ease: "easeInOut", delay: Math.random() }}
             />
-            <Feature 
-              icon={<Music className="text-white" size={32} />}
-              title="Monetization" 
-              desc="YouTube monetization even without channel monetization. Earn from Insta, FB, Snap."
-            />
-            <Feature 
-              icon={<CheckCircle2 className="text-[#ccff00]" size={32} />}
-              title="Direct WhatsApp" 
-              desc="Real human chat & call support. No Emails - No Lafda."
-            />
+          ))}
+        </motion.div>
+        <div className="relative z-10 max-w-6xl mx-auto px-6">
+          <div className="flex justify-center items-center gap-12 md:gap-20 flex-wrap opacity-60 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-500">
+            <a href="#" className="hover:scale-110 transition-all duration-300 group">
+              <img loading="lazy" decoding="async" src="https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg" alt="Spotify" className="h-8 md:h-10 object-contain group-hover:drop-shadow-[0_0_20px_rgba(182,255,0,0.8)] transition-all duration-300" referrerPolicy="no-referrer" />
+            </a>
+            <a href="#" className="hover:scale-110 transition-all duration-300 group">
+              <div className="flex items-center gap-1.5 opacity-90 group-hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] transition-all duration-300">
+                <svg className="h-7 md:h-9 text-white fill-current" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 24 184.8 8 273.5q-9 54.5 23.8 133.8c15.8 38.7 52.8 142.6 150 102.3 24.2-10 40-10.4 69.1 0 96.9 34.6 122.9-63.5 138.8-102.3-39.7-16.7-70.4-55.5-71-100.2zM276.9 104.9c-21.7 26.2-56 42.1-84.3 39-6.3-37.1 11.2-70.5 35.8-97.1 21.6-23.7 55-40 84.1-36.5 6.4 38.2-12.7 69.1-35.6 94.6z"/>
+                </svg>
+                <span className="font-sans font-medium text-2xl md:text-3xl tracking-tight text-white mb-0.5">Music</span>
+              </div>
+            </a>
+            <a href="#" className="hover:scale-110 transition-all duration-300 group">
+              <div className="flex items-center gap-2 group-hover:drop-shadow-[0_0_20px_rgba(255,0,0,0.8)] transition-all duration-300">
+                <img loading="lazy" decoding="async" src="https://upload.wikimedia.org/wikipedia/commons/6/6a/Youtube_Music_icon.svg" alt="YouTube Music" className="h-8 md:h-10 object-contain" referrerPolicy="no-referrer" />
+                <span className="font-display font-bold text-xl md:text-2xl tracking-tighter text-white">Music</span>
+              </div>
+            </a>
+          </div>
+          <p className="text-center font-display uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#B6FF00] to-[#8B5CF6] text-xs font-bold mt-12">Distributed to 250+ platforms worldwide</p>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how-it-works" className="py-24 md:py-32 px-6 md:px-12 bg-gradient-to-b from-[#0A0A0A] to-[#0d0a14] relative overflow-hidden">
+        {/* Soft abstract graphic background behind steps */}
+        <div className="absolute top-1/2 left-[10%] w-[300px] h-[300px] bg-[#8B5CF6]/10 rounded-full mix-blend-screen filter blur-[80px] md:blur-[100px] opacity-50 md:opacity-100 -z-10 hidden md:block"></div>
+        <div className="absolute top-[40%] right-[10%] w-[400px] h-[400px] bg-[#B6FF00]/5 rounded-full mix-blend-screen filter blur-[80px] md:blur-[100px] opacity-50 md:opacity-100 -z-10 hidden md:block" style={{ animationDelay: '1s' }}></div>
+        {/* Faint sound waves pattern */}
+        <div className="absolute inset-0 opacity-[0.02] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMjBMNSA1TDEwIDIwTDE1IDM1TDIwIDIwTDI1IDVMMzAgMjBMMzUgMzVMNDAgMjAiIHN0cm9rZT0iI2ZmZiIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] -z-10"></div>
+        
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#333] to-transparent"></div>
+        
+        <div className="max-w-6xl mx-auto relative z-10 flex flex-col items-center">
+          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter mb-16 md:mb-24 text-center text-white">How Gati Distribution Works</h2>
+          
+          <motion.div 
+            variants={containerVariants} 
+            initial="hidden" 
+            whileInView="show" 
+            viewport={{ once: true, amount: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-6 lg:gap-8 w-full relative"
+          >
+            {/* Horizontal Line connecting steps on large screens */}
+            <div className="hidden lg:block absolute top-[110px] left-[15%] right-[15%] h-px bg-gradient-to-r from-[#B6FF00]/30 via-[#3B82F6]/30 to-[#EC4899]/30 -z-10"></div>
+            
+            {/* Vertical Line on mobile/tablet */}
+            <div className="lg:hidden absolute top-[10%] bottom-[10%] left-1/2 -translate-x-1/2 w-px bg-gradient-to-b from-[#B6FF00]/20 via-[#3B82F6]/20 to-[#EC4899]/20 -z-10"></div>
+            
+            <motion.div variants={itemVariants} className="w-full">
+              <StepCard index={0} number="01" icon={<Zap />} title="Choose Plan" desc="Select the premium distribution plan that fits your goals correctly." colorTheme="green" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <StepCard index={1} number="02" icon={<UploadCloud />} title="Upload Song" desc="Fill details, metadata, and upload your high quality audio." colorTheme="blue" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <StepCard index={2} number="03" icon={<ShieldCheck />} title="We Review" desc="Strict manual approval within 7–8 hours to prevent future errors." colorTheme="purple" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <StepCard index={3} number="04" icon={<Globe2 />} title="Goes Live" desc="Your release pushes live on 250+ stores in just 2–3 days." colorTheme="pink" />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Why Choose Gati */}
+      <section id="features" className="py-32 px-6 md:px-12 bg-[#050505] relative">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#8B5CF6]/5 via-[#0A0A0A] to-[#0A0A0A] pointer-events-none"></div>
+        <div className="max-w-6xl mx-auto relative z-10">
+          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter mb-20 text-center text-transparent bg-clip-text bg-gradient-to-r from-white via-[#8B5CF6] to-[#B6FF00]">Why Choose Gati India Distribution</h2>
+          
+          <motion.div 
+            variants={containerVariants} 
+            initial="hidden" 
+            whileInView="show" 
+            viewport={{ once: true, amount: 0.1 }}
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            <motion.div variants={itemVariants} className="w-full">
+              <FeatureCard icon={<Clock />} title="Fast Delivery" desc="Your song goes live within 2–3 days on major platforms." colorTheme="green" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <FeatureCard icon={<ShieldCheck />} title="Manual Approval" desc="No auto rejection, every release is checked personally." colorTheme="blue" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <FeatureCard icon={<MessageCircle />} title="Direct WhatsApp Support" desc="No emails, instant communication with real humans." colorTheme="purple" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <FeatureCard icon={<PiggyBank />} title="Budget Friendly" desc="One of the most affordable premium distribution services." colorTheme="green" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <FeatureCard icon={<PenTool />} title="Metadata Correction Include" desc="We help fix cover art and metadata errors before release." colorTheme="blue" />
+            </motion.div>
+            <motion.div variants={itemVariants} className="w-full">
+              <FeatureCard icon={<Globe2 />} title="Worldwide Distribution" desc="Reach global audiences on 250+ streaming platforms." colorTheme="purple" />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Plans & Pricing */}
+      <section id="pricing" className="py-32 px-6 md:px-12 bg-[#0A0A0A] relative">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-20 relative">
+            {/* Background Glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] h-[300px] bg-[#B6FF00]/10 filter blur-[150px] -z-10 rounded-full"></div>
+            
+            <h2 className="text-4xl md:text-6xl font-display uppercase tracking-tighter text-white mb-6">Plans & Pricing</h2>
+            <p className="text-gray-400 font-sans text-lg max-w-xl mx-auto">Affordable options for every stage of your career. Keep <span className="text-white font-bold">80% of your royalties</span> across all tiers.</p>
+          </div>
+
+          <motion.div 
+            variants={containerVariants} 
+            initial="hidden" 
+            whileInView="show" 
+            viewport={{ once: true, amount: 0.1 }}
+            className="grid lg:grid-cols-3 gap-8 items-stretch pt-8"
+          >
+            <motion.div variants={itemVariants} className="w-full h-full">
+              <PricingCard 
+                name="Basic" price="75" period="/ SONG" tag="95% OFF" highlight colorTheme="blue"
+                groups={[
+                  {
+                    name: "Distribution Features",
+                    items: [
+                      { text: "Upload to 150+ platforms" },
+                      { text: "Delivery in 2-3 days", subtext: "(If no issues)" }
+                    ]
+                  },
+                  {
+                    name: "Revenue Features",
+                    items: [
+                      { text: "80% royalties to artist", subtext: "(20% cut)" },
+                      { text: "YouTube Content ID", subtext: "Song earns royalties without channel monetization" }
+                    ]
+                  },
+                  {
+                    name: "Support & Services",
+                    items: [
+                      { text: "Metadata & cover checked before release" },
+                      { text: "Release proof links shared after publishing" },
+                      { text: "Free re-upload once if error occurs" },
+                      { text: "WhatsApp chat Standard support" }
+                    ]
+                  }
+                ]}
+              />
+            </motion.div>
+            
+            <motion.div variants={itemVariants} className="w-full h-full">
+              <PricingCard 
+                name="Monthly" price="199" period="/ MONTH" tag="90% OFF" badge="Most Popular" highlight colorTheme="purple"
+                groups={[
+                  {
+                    name: "Distribution Features",
+                    items: [
+                      { text: "Unlimited song uploads", subtext: "(For 30 days)" },
+                      { text: "Global distribution", subtext: "(Spotify, Apple, JioSaavn, YouTube, etc.)" },
+                      { text: "Release date scheduling", subtext: "Choose your own drop date" },
+                      { text: "Delivery in 2-3 days" }
+                    ]
+                  },
+                  {
+                    name: "Revenue & Verification",
+                    items: [
+                      { text: "YouTube Content ID + IG/FB/Snapchat Music" },
+                      { text: "YouTube verified official artist channel" },
+                      { text: "Spotify Verified Artist Account" },
+                      { text: "Monthly Royalty Report sent on WhatsApp" }
+                    ]
+                  },
+                  {
+                    name: "Support & Promo",
+                    items: [
+                      { text: "Fast-track priority support", subtext: "WhatsApp Chat + Call (Reply under 2 hours)" },
+                      { text: "Basic promo shoutout on IG Story" },
+                      { text: "Artist profile link highlight on IG" }
+                    ]
+                  }
+                ]}
+              />
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="w-full h-full">
+              <PricingCard 
+                name="Yearly" price="999" period="/ YEAR" tag="98% OFF" badge="Best Value" highlight colorTheme="green"
+                groups={[
+                  {
+                    name: "Distribution Features",
+                    items: [
+                      { text: "Unlimited releases for 12 months" },
+                      { text: "Includes all features of Monthly Plan" }
+                    ]
+                  },
+                  {
+                    name: "Promo Opportunities",
+                    items: [
+                      { text: "Early access to promo opportunities", subtext: "Spotify promotion, YT promo, IG reels, collabs" },
+                      { text: "Custom release strategy & guidance" },
+                      { text: "Featured Artist of the Month chance", subtext: "Promoted on your page" }
+                    ]
+                  },
+                  {
+                    name: "Support Features",
+                    items: [
+                      { text: "Lifetime artist profile verification help", subtext: "If renewed annually" },
+                      { text: "Effective ₹80/Month pricing" }
+                    ]
+                  }
+                ]}
+              />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Dashboard Preview */}
+      <section className="relative py-32 px-6 overflow-hidden bg-[#050505]">
+        {/* Abstract Background for Dashboard */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-blue-600 rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] md:opacity-10 pointer-events-none"></div>
+        <div className="relative max-w-6xl mx-auto text-center z-10">
+          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter text-white mb-6">Manage Your Music</h2>
+          <p className="text-gray-400 max-w-xl mx-auto mb-16 font-sans">Track your releases, status, and earnings from your dashboard.</p>
+          
+          <div className="relative mx-auto max-w-5xl rounded-xl border border-[#333] bg-[#0a0a0a] p-2 md:p-4 shadow-[0_0_50px_rgba(0,0,0,0.8)] transform perspective-[2000px] rotateX-12 rotateY-0 hover:rotate-0 transition-transform duration-1000 ease-out cursor-default">
+            {/* Mock UI Top Bar */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#222]">
+              <div className="flex gap-2 px-2">
+                <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+              </div>
+              <div className="h-6 px-4 bg-[#1a1a1a] rounded text-[10px] text-gray-500 flex items-center justify-center font-display tracking-widest border border-[#333]">admin.gati.io</div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-left">
+              {/* Sidebar */}
+              <div className="col-span-1 hidden md:flex flex-col gap-2 border-r border-[#222] pr-4">
+                {['Overview', 'Releases', 'Analytics', 'Royalties', 'Support'].map((item, idx) => (
+                  <div key={idx} className={`h-8 rounded px-3 flex items-center text-xs font-display uppercase tracking-widest ${idx === 0 ? 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20' : 'text-gray-500 hover:bg-[#111]'}`}>{item}</div>
+                ))}
+              </div>
+              
+              {/* Main Content */}
+              <div className="col-span-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                  {/* Stat Cards */}
+                  <div className="bg-[#111] p-4 rounded-xl border border-[#222] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-[#ccff00] blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-display mb-1 flex justify-between">Total Streams <Activity size={12} className="text-[#ccff00]" /></div>
+                    <div className="text-2xl font-bold text-white">124,592</div>
+                    <div className="text-xs text-green-400 mt-2 flex items-center gap-1">+12.5% <TrendingUp size={10} /></div>
+                  </div>
+                  <div className="bg-[#111] p-4 rounded-xl border border-[#222] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500 blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-display mb-1 flex justify-between">Earnings <BarChart3 size={12} className="text-purple-400" /></div>
+                    <div className="text-2xl font-bold text-white">₹14,290</div>
+                    <div className="text-xs text-green-400 mt-2 flex items-center gap-1">+8.2% <TrendingUp size={10} /></div>
+                  </div>
+                  <div className="bg-[#111] p-4 rounded-xl border border-[#222] relative overflow-hidden hidden md:block group">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500 blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-display mb-1 flex justify-between">Status <UploadCloud size={12} className="text-blue-400" /></div>
+                    <div className="text-sm font-bold text-white flex items-center gap-2 mt-1">
+                      <span className="text-gray-400 line-through decoration-[#333]">Reviewing</span>
+                      <ArrowRight size={12} className="text-gray-500"/>
+                      <span className="text-[#ccff00]">Live</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Chart Area */}
+                <div className="h-48 w-full bg-[#111] border border-[#222] rounded-xl p-4 flex flex-col justify-between relative overflow-hidden">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-display absolute top-4 left-4 z-10">Stream Performance</div>
+                  
+                  {/* SVG Line Chart */}
+                  <div className="absolute inset-x-0 bottom-0 h-32 opacity-80">
+                    <svg className="w-full h-full drop-shadow-[0_0_15px_rgba(204,255,0,0.3)]" viewBox="0 0 100 30" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ccff00" stopOpacity="0.4"/>
+                          <stop offset="100%" stopColor="#ccff00" stopOpacity="0"/>
+                        </linearGradient>
+                        <linearGradient id="chartLine" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#ccff00"/>
+                          <stop offset="100%" stopColor="#b3e600"/>
+                        </linearGradient>
+                      </defs>
+                      <path d="M0,30 L0,20 C10,25 20,15 30,18 C40,21 50,8 60,12 C70,16 80,4 90,8 C95,10 100,2 100,2 L100,30 Z" fill="url(#chartGlow)" className="animate-pulse" style={{ animationDuration: '3s' }} />
+                      <path d="M0,20 C10,25 20,15 30,18 C40,21 50,8 60,12 C70,16 80,4 90,8 C95,10 100,2 100,2" fill="none" stroke="url(#chartLine)" strokeWidth="0.8" />
+                    </svg>
+                  </div>
+                  
+                  {/* Vertical grid lines */}
+                  <div className="absolute inset-0 flex justify-between px-4 pointer-events-none opacity-20">
+                    {[1,2,3,4,5,6].map((i) => <div key={i} className="w-px h-full bg-[#333]"></div>)}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-24 px-6 md:px-24">
-        <h2 className="text-5xl md:text-7xl font-display uppercase font-bold text-center tracking-tighter mb-20 text-white">Choose Your Plan</h2>
+      {/* Social Proof */}
+      <section className="relative py-32 px-6 max-w-6xl mx-auto overflow-hidden">
+        {/* Glow behind chat map */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-green-500/10 rounded-full filter blur-[100px] md:blur-[150px] opacity-50 md:opacity-100 pointer-events-none -z-10"></div>
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter text-white mb-4">Artists ♥ Gati</h2>
+          <p className="text-gray-400 font-sans text-lg max-w-xl mx-auto">Real conversations. Real results. Our whatsapp support means you're never left in the dark.</p>
+        </div>
         
-        <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-          {/* Plan 1 */}
-          <PricingCard 
-            title="Basic"
-            price="75"
-            period="/ song"
-            desc="Perfect for beginners who want to release single tracks quickly."
-            features={[
-              "Upload to Spotify, Apple, YT & 250+",
-              "80% royalties to artist",
-              "Delivery in 2–3 days",
-              "YouTube Content ID",
-              "Metadata + cover checking",
-              "Free 1 re-upload (if error)",
-              "WhatsApp chat support"
-            ]}
+        <div className="grid md:grid-cols-3 gap-6 relative">
+          <WhatsAppMockup 
+            time="10:42 AM" 
+            msg1="Hey team! Just submitted my new EP." 
+            msg2="Awesome! We're reviewing it now. Should be live on Spotify in 48 hours 🚀" 
+            delay={0.1}
           />
-
-          {/* Plan 2 */}
-          <PricingCard 
-            title="Monthly"
-            price="199"
-            period="/ month"
-            desc="Best for active artists releasing music regularly."
-            highlight
-            features={[
-              "Unlimited uploads (30 days)",
-              "80% royalties to artist",
-              "Distribution to 250+ platforms",
-              "YouTube Content ID + Insta/Snap",
-              "Verified Artist YT & Spotify",
-              "Artist Dashboard access",
-              "Monthly royalty report",
-              "Fast priority support (<2 hr)",
-              "Release scheduling"
-            ]}
+          <WhatsAppMockup 
+            time="2:15 PM" 
+            msg1="Is my song live yet?" 
+            msg2="Yes! Here are your links for Spotify, Apple Music. Congrats! 🎉" 
+            delay={0.3}
           />
-
-          {/* Plan 3 */}
-          <PricingCard 
-            title="Yearly"
-            price="999"
-            period="/ year"
-            subtext="(≈ ₹80/month)"
-            desc="Best value for serious artists building long-term presence."
-            features={[
-              "Unlimited releases for 12 months",
-              "80% royalties to artist",
-              "All Monthly features included",
-              "Custom release strategy",
-              "Featured artist promotion",
-              "Early promo opportunities"
-            ]}
+          <WhatsAppMockup 
+            time="6:30 PM" 
+            msg1="Thanks for fixing my cover art btw 🙏" 
+            msg2="Always! We want your release to look perfect. Drop us a message anytime." 
+            delay={0.5}
           />
         </div>
       </section>
 
-      {/* Auth Callout */}
-      <section className="py-24 px-6 text-center border-t border-[#333] bg-[#050505]">
-        <h2 className="text-4xl font-display uppercase tracking-tight mb-8">Already an Artist?</h2>
-        <a 
-          href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi,%20I%20want%20to%20request%20dashboard%20access.`}
-          target="_blank" rel="noopener noreferrer"
-          className="inline-block px-8 py-4 border-2 border-white text-white hover:bg-white hover:text-black font-display uppercase tracking-widest font-bold transition-all"
-        >
-          Request Dashboard Access
-        </a>
+      {/* FAQ */}
+      <section id="faq" className="py-24 px-6 md:px-12 bg-[#0a0a0a]">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter text-center text-white mb-16">FAQs</h2>
+          <div className="space-y-4">
+            <FaqItem q="How to release music on Spotify in India?" a="You can release your music on Spotify in India quickly by using Gati Music Distribution. Choose an affordable plan, upload your tracks, cover art, and metadata, and we will deliver it to Spotify and 250+ platforms worldwide." />
+            <FaqItem q="How does Gati Music Distribution work?" a="Sign up, choose an affordable plan (Basic, Monthly, or Yearly), and upload your song. Our manual review team checks your release and sends it to worldwide streaming stores." />
+            <FaqItem q="How long does release take?" a="Manual approval takes 7-8 hours, and your release will go live on platforms like Spotify and Apple Music in just 2-3 days." />
+            <FaqItem q="How do royalties work?" a="Artists keep 80% of their royalties on all tiers. Your earnings are reported monthly directly within your artist dashboard." />
+            <FaqItem q="How to withdraw earnings?" a="You can withdraw your earnings directly to your bank account via the artist dashboard once the threshold is met." />
+          </div>
+        </div>
       </section>
+
+      {/* Contact / Support CTA */}
+      <section className="relative py-40 px-6 bg-[#0A0A0A] text-white text-center overflow-hidden border-t border-[#1a1a1a]">
+        {/* Strong CTA Background Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#B6FF00]/10 via-[#8B5CF6]/10 to-[#0A0A0A] pointer-events-none"></div>
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-1/2 bg-gradient-to-t from-[#B6FF00]/20 to-transparent blur-[100px]"></div>
+        
+        <div className="relative z-10 max-w-4xl mx-auto">
+          <h2 className="text-5xl md:text-8xl font-display uppercase tracking-tighter mb-8 text-white drop-shadow-2xl">
+            You got music?<br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#B6FF00] to-[#8B5CF6]">We got you.</span>
+          </h2>
+          <p className="font-sans text-xl md:text-2xl mb-12 max-w-2xl mx-auto font-medium text-gray-300">Direct WhatsApp Support – No Emails, No Delays.</p>
+          
+          <motion.a 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi, I have a question.")}`} 
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 bg-[#B6FF00] text-black px-12 py-6 rounded-full font-display uppercase tracking-widest font-black text-lg hover:bg-white shadow-[0_0_40px_rgba(182,255,0,0.4)] hover:shadow-[0_0_60px_rgba(255,255,255,0.6)] transition-shadow"
+          >
+            <MessageCircleIcon /> Message {WHATSAPP_NUMBER}
+          </motion.a>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-[#050505] border-t border-[#1a1a1a] pt-16 pb-8 px-6 text-gray-500 font-sans text-sm">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+          <div className="col-span-1 md:col-span-2">
+            <Logo className="mb-4 grayscale opacity-50 block w-full" />
+            <p className="max-w-sm">For the Artist, By the Artists. Direct support, budget-friendly prices, and lightning-fast worldwide delivery.</p>
+          </div>
+          <div>
+            <h4 className="font-display uppercase tracking-widest text-[#f5f5f5] mb-4">Quick Links</h4>
+            <div className="flex flex-col gap-2">
+              <a href="#" className="hover:text-white transition-colors">About</a>
+              <a href="#" className="hover:text-white transition-colors">Contact</a>
+              <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-display uppercase tracking-widest text-[#f5f5f5] mb-4">Legal</h4>
+            <div className="flex flex-col gap-2">
+              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms & Conditions</a>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto border-t border-[#1a1a1a] pt-8 text-center text-xs">
+          © 2026 Gati Music Distribution. All rights reserved.
+        </div>
+      </footer>
+
     </div>
   );
 }
 
-function Feature({ title, desc, icon }: { title: string, desc: string, icon: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-4 p-6 border border-[#333] hover:border-[#ccff00] transition-colors">
-      <div>{icon}</div>
-      <h3 className="text-xl font-display uppercase tracking-tight text-white">{title}</h3>
-      <p className="text-sm text-gray-400 font-sans">{desc}</p>
-    </div>
-  );
-}
+// --- Sub Components ---
 
-function PricingCard({ title, price, period, subtext, desc, features, highlight = false }: any) {
+function StepCard({ index = 0, number, title, desc, icon, colorTheme = "green" }: any) {
+  const themes: Record<string, string> = {
+    green: "text-[#B6FF00] group-hover:border-[#B6FF00]/50 group-hover:shadow-[0_0_40px_rgba(182,255,0,0.2)] bg-[#B6FF00]/5",
+    blue: "text-[#3B82F6] group-hover:border-[#3B82F6]/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] bg-[#3B82F6]/5",
+    purple: "text-[#8B5CF6] group-hover:border-[#8B5CF6]/50 group-hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] bg-[#8B5CF6]/5",
+    pink: "text-[#EC4899] group-hover:border-[#EC4899]/50 group-hover:shadow-[0_0_40px_rgba(236,72,153,0.2)] bg-[#EC4899]/5"
+  };
+
+  const glowThemes: Record<string, string> = {
+    green: "bg-[#B6FF00]/30",
+    blue: "bg-[#3B82F6]/30",
+    purple: "bg-[#8B5CF6]/30",
+    pink: "bg-[#EC4899]/30"
+  };
+
   return (
-    <div className={`p-8 border-2 flex flex-col ${highlight ? 'border-[#ccff00] bg-[#0a0a0a]' : 'border-[#333] bg-[#111]'}`}>
-      <h3 className={`text-4xl font-display uppercase tracking-tighter mb-4 ${highlight ? 'text-[#ccff00]' : 'text-white'}`}>{title}</h3>
-      <div className="mb-4">
-        <span className="text-5xl font-display font-medium">₹{price}</span>
-        <span className="text-lg text-gray-400 font-sans ml-2">{period}</span>
-        {subtext && <div className="text-sm text-[#ccff00] font-sans mt-1">{subtext}</div>}
-      </div>
-      <p className="text-sm text-gray-400 font-sans mb-8 min-h-[40px] border-b border-[#333] pb-6">{desc}</p>
+    <motion.div 
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.1, ease: "easeOut" }}
+      viewport={{ once: true, margin: "-50px" }}
+      className={`relative flex flex-col items-center text-center group w-full max-w-[340px] mx-auto p-8 rounded-3xl bg-[#111]/40 backdrop-blur-xl border border-[#222] transition-all duration-500 hover:-translate-y-2 hover:bg-[#151515] ${themes[colorTheme].split(" ").filter((c: string) => c.startsWith("group-hover:")).join(" ")}`}
+    >
+      <div className={`absolute top-4 right-6 font-display font-black text-6xl text-white/[0.03] select-none pointer-events-none group-hover:text-white/[0.06] transition-colors duration-500 z-0`}>{number}</div>
       
-      <ul className="flex flex-col gap-4 mb-10 flex-grow font-sans text-sm text-gray-300">
-        {features.map((f: string, i: number) => (
-          <li key={i} className="flex gap-3 items-start">
-            <CheckCircle2 size={16} className={highlight ? "text-[#ccff00] shrink-0 mt-0.5" : "text-gray-500 shrink-0 mt-0.5"} />
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
+      <motion.div 
+        animate={{ y: [0, -5, 0] }}
+        transition={{ repeat: Infinity, duration: 3 + index * 0.5, ease: "easeInOut" }}
+        className={`relative w-20 h-20 rounded-full border border-[#333] flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(0,0,0,0.8)] z-10 transition-all duration-300 ${themes[colorTheme].split(" ")[0]} ${themes[colorTheme].split(" ").find(c => c.startsWith("bg-"))}`}
+      >
+        <div className={`absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${glowThemes[colorTheme]}`}></div>
+        {/* Clone icon to handle exact glowing color matches */}
+        {React.cloneElement(icon, { className: "relative z-10" })}
+      </motion.div>
+      
+      <h3 className="text-xl font-display uppercase tracking-wide text-white mb-3 relative z-10">{title}</h3>
+      <p className="text-sm text-gray-400 font-sans leading-relaxed relative z-10">{desc}</p>
+    </motion.div>
+  );
+}
 
-      <WhatsAppCheckout plan={title.toUpperCase()} amount={price} />
+function FeatureCard({ icon, title, desc, colorTheme = "green" }: any) {
+  const themes: Record<string, { ring: string, icon: string, bg: string, shadow: string, topBorder: string }> = {
+    green: { ring: "hover:border-[#B6FF00]/50 hover:bg-[#B6FF00]/5", icon: "text-[#B6FF00]", bg: "group-hover:border-[#B6FF00]/50", shadow: "group-hover:shadow-[0_0_20px_rgba(182,255,0,0.1)]", topBorder: "from-[#B6FF00]/30" },
+    purple: { ring: "hover:border-[#8B5CF6]/50 hover:bg-[#8B5CF6]/5", icon: "text-[#8B5CF6]", bg: "group-hover:border-[#8B5CF6]/50", shadow: "group-hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]", topBorder: "from-[#8B5CF6]/30" },
+    blue: { ring: "hover:border-[#3B82F6]/50 hover:bg-[#3B82F6]/5", icon: "text-[#3B82F6]", bg: "group-hover:border-[#3B82F6]/50", shadow: "group-hover:shadow-[0_0_20px_rgba(59,130,246,0.1)]", topBorder: "from-[#3B82F6]/30" }
+  };
+  const t = themes[colorTheme] || themes.green;
+
+  return (
+    <div className={`relative p-8 border border-[#222] bg-[#111]/40 backdrop-blur-xl transition-all duration-500 overflow-hidden group rounded-2xl shadow-xl hover:-translate-y-2 ${t.ring}`}>
+      {/* Top Gradient Accent */}
+      <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${t.topBorder} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+      
+      {/* Subtle background illustration element */}
+      <div className={`absolute -right-6 -top-6 text-[#1a1a1a] transition-colors transform group-hover:scale-110 group-hover:rotate-12 duration-500 z-0 pointer-events-none group-hover:${t.icon} group-hover:opacity-10`}>
+        {React.cloneElement(icon, { size: 140, strokeWidth: 0.5 })}
+      </div>
+      
+      <div className="relative z-10">
+        <div className={`text-gray-400 mb-8 w-14 h-14 bg-[#0A0A0A] rounded-xl flex items-center justify-center border border-[#222] transition-colors shadow-inner group-hover:${t.icon} ${t.bg} ${t.shadow}`}>
+          {React.cloneElement(icon, { size: 24 })}
+        </div>
+        <h3 className="text-lg font-display uppercase tracking-tight text-white mb-3">{title}</h3>
+        <p className="text-sm text-gray-400 leading-relaxed font-sans">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+interface FeatureGroup {
+  name: string;
+  items: { text: string; subtext?: string }[];
+}
+
+interface PricingCardProps {
+  name: string;
+  price: string;
+  period: string;
+  tag?: string;
+  badge?: string;
+  highlight?: boolean;
+  colorTheme?: "green" | "purple" | "blue";
+  groups: FeatureGroup[];
+}
+
+function PricingCard({ name, price, period, tag, badge, highlight, colorTheme = "green", groups }: PricingCardProps) {
+  const themes = {
+    green: {
+      border: "border-[#B6FF00]/30 hover:border-[#B6FF00]/60 ring-[#B6FF00]/20",
+      glowBg: "bg-[#B6FF00]",
+      shadow: "shadow-[0_0_40px_rgba(182,255,0,0.1)]",
+      badgeBg: "bg-gradient-to-r from-[#B6FF00] to-[#8B5CF6] text-black",
+      text: "from-[#B6FF00] to-white",
+      tagText: "text-[#B6FF00]",
+      check: "text-[#B6FF00]",
+      btn: "bg-[#B6FF00] text-black hover:bg-white hover:scale-105 shadow-[0_0_20px_rgba(182,255,0,0.3)]",
+      line: "from-transparent via-[#B6FF00] to-transparent"
+    },
+    purple: {
+      border: "border-[#8B5CF6]/30 hover:border-[#8B5CF6]/60 ring-[#8B5CF6]/20",
+      glowBg: "bg-[#8B5CF6]",
+      shadow: "shadow-[0_0_40px_rgba(139,92,246,0.1)]",
+      badgeBg: "bg-gradient-to-r from-[#8B5CF6] to-[#EC4899] text-white",
+      text: "from-[#8B5CF6] to-white",
+      tagText: "text-[#8B5CF6]",
+      check: "text-[#8B5CF6]",
+      btn: "bg-[#8B5CF6] text-white hover:bg-white hover:text-black hover:scale-105 shadow-[0_0_20px_rgba(139,92,246,0.3)]",
+      line: "from-transparent via-[#8B5CF6] to-transparent"
+    },
+    blue: {
+      border: "border-[#3B82F6]/30 hover:border-[#3B82F6]/60 ring-[#3B82F6]/20",
+      glowBg: "bg-[#3B82F6]",
+      shadow: "shadow-[0_0_40px_rgba(59,130,246,0.1)]",
+      badgeBg: "bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] text-white",
+      text: "from-[#3B82F6] to-white",
+      tagText: "text-[#3B82F6]",
+      check: "text-[#3B82F6]",
+      btn: "bg-[#3B82F6] text-white hover:bg-white hover:text-black hover:scale-105 shadow-[0_0_20px_rgba(59,130,246,0.3)]",
+      line: "from-transparent via-[#3B82F6] to-transparent"
+    }
+  };
+  
+  const t = themes[colorTheme] || themes.green;
+
+  return (
+    <motion.div 
+      whileHover={{ y: -10 }}
+      className={`relative p-8 flex flex-col rounded-3xl transition-all duration-500 w-full overflow-hidden ${highlight ? `bg-[#0A0A0A]/80 backdrop-blur-lg border ${t.border} ${t.shadow} ring-1 overflow-visible` : `bg-[#111]/50 backdrop-blur-md border border-[#222] hover:border-[#444] hover:shadow-2xl`}`}
+    >
+      {/* Top soft gradient edge */}
+      {highlight && <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${t.line} opacity-80`}></div>}
+      
+      {/* Internal Background Glow */}
+      <div className={`absolute -top-32 -right-32 w-64 h-64 ${t.glowBg} blur-[120px] ${highlight ? 'opacity-[0.2]' : 'opacity-[0.05]'} pointer-events-none rounded-full`}></div>
+      <div className={`absolute -bottom-32 -left-32 w-64 h-64 ${t.glowBg} blur-[120px] opacity-[0.05] pointer-events-none rounded-full`}></div>
+      
+      {badge && (
+        <div className={`absolute -top-4 right-6 font-display uppercase tracking-widest text-[10px] font-bold px-4 py-2 rounded-full shadow-lg z-20 ${highlight ? t.badgeBg : 'bg-[#222] text-white border border-[#333]'}`}>
+          {badge}
+        </div>
+      )}
+
+      <h3 className="text-2xl font-display uppercase tracking-widest text-[#f5f5f5] mb-2">{name}</h3>
+      <div className="mb-4 flex flex-col">
+        <div className="flex items-baseline gap-2">
+          <span className={`text-6xl font-display font-black tracking-tighter ${highlight ? `text-transparent bg-clip-text bg-gradient-to-br ${t.text}` : 'text-white'}`}>₹{price}</span>
+          <span className="text-gray-500 font-sans text-sm uppercase tracking-widest">{period}</span>
+        </div>
+      </div>
+
+      {tag && (
+        <div className={`bg-[#1a1a1a]/80 backdrop-blur-sm border border-[#333] ${highlight ? t.tagText : 'text-gray-400'} text-xs px-3 py-1.5 rounded inline-block mb-8 font-mono self-start uppercase font-bold shadow-sm`}>
+          {tag}
+        </div>
+      )}
+
+      <div className="space-y-8 flex-grow relative z-10">
+        {groups.map((g, i) => (
+          <div key={i}>
+            <h4 className="text-[10px] font-display text-gray-500 uppercase tracking-widest border-b border-[#222] pb-2 mb-4">{g.name}</h4>
+            <ul className="space-y-4">
+              {g.items.map((item, j) => (
+                <li key={j} className="flex gap-3 text-sm text-gray-300">
+                  <CheckCircle2 size={16} className={`shrink-0 mt-0.5 ${highlight ? t.check : 'text-gray-600'}`} />
+                  <div>
+                    <span className="block font-medium">{item.text}</span>
+                    {item.subtext && <span className="block text-xs text-gray-500 mt-1">{item.subtext}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-10 pt-8 border-t border-[#222] relative z-10">
+        {highlight ? (
+            <a 
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I want to purchase the ${name} plan.`)}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`block w-full py-4 text-center font-display font-bold uppercase tracking-widest transition-all rounded-full duration-300 ${t.btn}`}
+            >
+              Buy Now
+            </a>
+         ) : (
+            <WhatsAppCheckout plan={name} highlight={highlight} />
+         )}
+      </div>
+    </motion.div>
+  )
+}
+
+function WhatsAppMockup({ time, msg1, msg2, delay = 0 }: { time: string, msg1: string, msg2: string, delay?: number }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ delay: delay * 0.8, duration: 0.4 }}
+      viewport={{ once: true, margin: "-20px" }}
+      className="bg-[#0a0a0a] border border-[#222] rounded-2xl p-4 shadow-xl font-sans relative hover:border-[#333] transition-colors"
+    >
+      <div className="flex border-b border-[#222] pb-3 mb-4 items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold text-xs font-display">G</div>
+        <div>
+          <div className="text-sm font-bold text-white leading-none">Gati Support</div>
+          <div className="text-[10px] text-green-400 mt-1">Online</div>
+        </div>
+      </div>
+      <div className="space-y-4">
+        {/* User Msg */}
+        <div className="flex justify-end">
+          <div className="bg-[#111] text-gray-200 p-3 rounded-2xl rounded-tr-sm text-sm border border-[#222] relative max-w-[85%]">
+            {msg1}
+            <div className="text-[9px] text-gray-500 text-right mt-1">{time} <CheckCheck size={10} className="inline text-gray-500 ml-1" /></div>
+          </div>
+        </div>
+        {/* Gati Msg */}
+        <div className="flex justify-start">
+          <div className="bg-gradient-to-br from-[#1a2e10] to-[#111] text-[#ccff00] p-3 rounded-2xl rounded-tl-sm text-sm border border-[#2bcc00]/20 relative max-w-[90%] font-medium">
+            {msg2}
+            <div className="text-[9px] text-[#ccff00]/60 text-right mt-1">Just now</div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function FaqItem({ q, a }: { q: string, a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-[#1a1a1a] bg-[#111] rounded-lg overflow-hidden mb-4">
+      <button 
+        onClick={() => setOpen(!open)}
+        className="w-full text-left p-6 flex justify-between items-center font-display uppercase tracking-wide text-white hover:text-[#ccff00] transition-colors"
+      >
+        {q}
+        <ChevronDown className={`transform transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+           <motion.div 
+            initial={{ height: 0, opacity: 0 }} 
+            animate={{ height: "auto", opacity: 1 }} 
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+           >
+             <div className="p-6 pt-0 text-gray-400 font-sans border-t border-[#1a1a1a] mt-2 bg-[#111]">
+               {a}
+             </div>
+           </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

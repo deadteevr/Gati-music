@@ -4,35 +4,38 @@ import { db } from '../../firebase';
 import { Bell, Send, Megaphone } from 'lucide-react';
 
 export default function AdminNotifications() {
-  const [formData, setFormData] = useState({ title: '', message: '', uid: '' });
+  const [singleData, setSingleData] = useState({ title: '', message: '', uid: '' });
+  const [broadcastData, setBroadcastData] = useState({ title: '', message: '' });
   const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
     // Get users for dropdown
     const q = query(collection(db, 'users'));
     const unsub = onSnapshot(q, (snap) => {
-      setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+      // Filter out admin users if any, or just ensure they have an email
+      const fetchedUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+      setUsers(fetchedUsers);
     });
     return unsub;
   }, []);
 
   const handleSendSingle = async (e: any) => {
     e.preventDefault();
-    if (!formData.uid || formData.uid === 'ALL') {
+    if (!singleData.uid || singleData.uid === 'ALL') {
       alert("Please select a specific artist from the dropdown.");
       return;
     }
 
     try {
       await addDoc(collection(db, 'notifications'), {
-        uid: formData.uid,
-        title: formData.title || 'System Notification',
-        message: formData.message,
+        uid: singleData.uid,
+        title: singleData.title || 'System Notification',
+        message: singleData.message,
         read: false,
         createdAt: new Date().toISOString()
       });
       alert('Notification sent to artist.');
-      setFormData({ ...formData, message: '', title: ''});
+      setSingleData({ ...singleData, message: '', title: ''});
     } catch (err: any) {
       alert('Error sending notification: ' + err.message);
     }
@@ -40,7 +43,7 @@ export default function AdminNotifications() {
 
   const handleBroadcast = async (e: any) => {
     e.preventDefault();
-    if (!formData.message || !formData.title) {
+    if (!broadcastData.message || !broadcastData.title) {
         alert("Broadcasts require a title and message.");
         return;
     }
@@ -51,15 +54,15 @@ export default function AdminNotifications() {
       const promises = users.map(u => 
         addDoc(collection(db, 'notifications'), {
           uid: u.uid,
-          title: `📢 ANNOUNCEMENT: ${formData.title}`,
-          message: formData.message,
+          title: `📢 ANNOUNCEMENT: ${broadcastData.title}`,
+          message: broadcastData.message,
           read: false,
           createdAt: new Date().toISOString()
         })
       );
       await Promise.all(promises);
       alert(`Broadcast sent completely to ${users.length} users.`);
-      setFormData({ uid: '', message: '', title: '' });
+      setBroadcastData({ message: '', title: '' });
     } catch (err: any) {
       alert('Error sending broadcast: ' + err.message);
     }
@@ -85,13 +88,13 @@ export default function AdminNotifications() {
             <div className="flex flex-col gap-2">
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Select Artist</label>
               <select 
-                value={formData.uid} 
-                onChange={e=>setFormData({...formData, uid: e.target.value})}
+                value={singleData.uid} 
+                onChange={e=>setSingleData({...singleData, uid: e.target.value})}
                 className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd]"
                 required
               >
                 <option value="">-- Choose Artist --</option>
-                {users.map(u => (
+                {users.filter(u => u.role === 'artist').map(u => (
                   <option key={u.uid} value={u.uid}>{u.displayName || 'No Name'} ({u.email})</option>
                 ))}
               </select>
@@ -101,8 +104,8 @@ export default function AdminNotifications() {
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Title</label>
               <input 
                 placeholder="e.g. Account Update" 
-                value={formData.title} 
-                onChange={e=>setFormData({...formData, title: e.target.value})} 
+                value={singleData.title} 
+                onChange={e=>setSingleData({...singleData, title: e.target.value})} 
                 className="w-full bg-[#222] border border-[#444] p-3 text-white font-sans focus:outline-none focus:border-[#9d4edd]" 
                 required 
               />
@@ -112,8 +115,8 @@ export default function AdminNotifications() {
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Message</label>
               <textarea 
                 placeholder="Type your message here..." 
-                value={formData.message} 
-                onChange={e=>setFormData({...formData, message: e.target.value})} 
+                value={singleData.message} 
+                onChange={e=>setSingleData({...singleData, message: e.target.value})} 
                 className="w-full bg-[#222] border border-[#444] p-3 text-white font-sans min-h-[120px] focus:outline-none focus:border-[#9d4edd]" 
                 required 
               />
@@ -137,8 +140,8 @@ export default function AdminNotifications() {
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Broadcast Title</label>
               <input 
                 placeholder="e.g. Platform update: New features!" 
-                value={formData.title} 
-                onChange={e=>setFormData({...formData, title: e.target.value})} 
+                value={broadcastData.title} 
+                onChange={e=>setBroadcastData({...broadcastData, title: e.target.value})} 
                 className="w-full bg-[#222] border border-[#444] p-3 text-white font-sans focus:outline-none focus:border-[#ccff00]" 
               />
             </div>
@@ -147,8 +150,8 @@ export default function AdminNotifications() {
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Message body</label>
               <textarea 
                 placeholder="Alert all your artists here..." 
-                value={formData.message} 
-                onChange={e=>setFormData({...formData, message: e.target.value})} 
+                value={broadcastData.message} 
+                onChange={e=>setBroadcastData({...broadcastData, message: e.target.value})} 
                 className="w-full h-full bg-[#222] border border-[#444] p-3 text-white font-sans min-h-[188px] flex-1 focus:outline-none focus:border-[#ccff00]" 
               />
             </div>

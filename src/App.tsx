@@ -1,12 +1,14 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import Dashboard from './pages/Dashboard';
-import AdminPanel from './pages/AdminPanel';
+import PremiumLoader from './components/PremiumLoader';
+
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -61,22 +63,20 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-[#ccff00] flex items-center justify-center font-display text-2xl font-bold">
-        GATI IS LOADING...
-      </div>
-    );
+    return <PremiumLoader />;
   }
 
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
-        <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} /> : <Navigate to="/login" replace />} />
-        <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} /> : <Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<PremiumLoader />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
+          <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} /> : <Navigate to="/login" replace />} />
+          <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} /> : <Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </Router>
   );
 }

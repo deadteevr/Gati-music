@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, query, onSnapshot, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Link } from 'react-router-dom';
-import { Search, ChevronRight, Filter } from 'lucide-react';
+import { Search, ChevronRight, Filter, CheckSquare } from 'lucide-react';
 
 export default function AdminSongs() {
   const [songs, setSongs] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    // Note: requires a composite index if combining where() and orderBy()
-    // Doing client-side sort/filter for this MVP to avoid index requirements initially
     const q = query(collection(db, 'submissions'));
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -39,6 +40,47 @@ export default function AdminSongs() {
       case 'Live': return 'text-[#ccff00]';
       case 'Changes Required': return 'text-red-500';
       default: return 'text-gray-400';
+    }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedSongs(new Set(filteredSongs.map(s => s.id)));
+    } else {
+      setSelectedSongs(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const next = new Set(selectedSongs);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedSongs(next);
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedSongs.size === 0 || !bulkStatus) return;
+    if (!window.confirm(`Update ${selectedSongs.size} songs to "${bulkStatus}"?`)) return;
+
+    setIsUpdating(true);
+    try {
+      const batch = writeBatch(db);
+      selectedSongs.forEach(id => {
+        const ref = doc(db, 'submissions', id);
+        batch.update(ref, { status: bulkStatus });
+      });
+      await batch.commit();
+      alert('Bulk update successful');
+      setSelectedSongs(new Set());
+      setBulkStatus('');
+    } catch (error) {
+      console.error(error);
+      alert('Error performing bulk update');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -79,10 +121,46 @@ export default function AdminSongs() {
         </div>
       </div>
 
+      {selectedSongs.size > 0 && (
+        <div className="bg-[#ccff00] text-black p-4 flex items-center justify-between shadow-lg">
+          <div className="font-display font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+            <CheckSquare size={18} /> {selectedSongs.size} Songs Selected
+          </div>
+          <div className="flex items-center gap-4">
+            <select 
+              value={bulkStatus}
+              onChange={e => setBulkStatus(e.target.value)}
+              className="bg-black/10 border-black/20 text-black px-3 py-2 font-display uppercase font-bold text-xs focus:outline-none"
+            >
+              <option value="">-- Apply Status To All --</option>
+              <option value="Reviewing">Reviewing</option>
+              <option value="Processing">Processing</option>
+              <option value="Sent to Stores">Sent to Stores</option>
+              <option value="Live">Live</option>
+            </select>
+            <button 
+              onClick={handleBulkUpdate}
+              disabled={!bulkStatus || isUpdating}
+              className="bg-black text-[#ccff00] px-4 py-2 font-display uppercase tracking-widest text-xs font-bold hover:bg-[#222] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdating ? 'Updating...' : 'Update Selected'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-[#111] border border-[#333] overflow-x-auto">
         <table className="w-full text-left text-sm font-sans">
           <thead className="bg-[#1a1a1a] text-gray-400 font-display uppercase tracking-widest text-xs border-b border-[#333]">
             <tr>
+              <th className="px-4 py-4 w-12 text-center">
+                <input 
+                  type="checkbox" 
+                  checked={filteredSongs.length > 0 && selectedSongs.size === filteredSongs.length}
+                  onChange={handleSelectAll}
+                  className="accent-[#ccff00] cursor-pointer"
+                />
+              </th>
               <th className="px-6 py-4">Release</th>
               <th className="px-6 py-4">Main Artist</th>
               <th className="px-6 py-4">Date Submitted</th>
@@ -93,13 +171,21 @@ export default function AdminSongs() {
           <tbody className="divide-y divide-[#222]">
             {filteredSongs.map(song => (
               <tr key={song.id} className="hover:bg-[#151515] transition-colors">
+                <td className="px-4 py-4 text-center">
+                  <input 
+                    type="checkbox"
+                    checked={selectedSongs.has(song.id)}
+                    onChange={() => handleSelectOne(song.id)}
+                    className="accent-[#ccff00] cursor-pointer"
+                  />
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     {song.coverUrl ? (
                       <img src={song.coverUrl} alt="Cover" className="w-10 h-10 object-cover bg-[#222]" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-10 h-10 bg-[#222] flex items-center justify-center">
-                        <Music size={16} className="text-gray-500" />
+                        <span className="text-gray-500 font-bold text-xs uppercase">IMG</span>
                       </div>
                     )}
                     <span className="font-bold text-white">{song.title || 'Untitled'}</span>
@@ -128,7 +214,7 @@ export default function AdminSongs() {
             ))}
             {filteredSongs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500 font-sans">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 font-sans">
                   No submissions found matching criteria.
                 </td>
               </tr>

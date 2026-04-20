@@ -3,12 +3,14 @@ import { collection, addDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage, handleFirestoreError, OperationType } from '../../firebase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, CheckCircle } from 'lucide-react';
+import { Plus, X, CheckCircle, CheckCircle2 } from 'lucide-react';
 
 export default function ArtistUpload({ user }: { user: any }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [audioError, setAudioError] = useState("");
+  const [coverError, setCoverError] = useState("");
   const [success, setSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -61,12 +63,20 @@ export default function ArtistUpload({ user }: { user: any }) {
     if (!['mp3', 'm4a', 'wav'].includes(ext || '')) {
       throw new Error("Invalid audio format! Please upload an MP3, M4A, or WAV file.");
     }
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      throw new Error("Audio file size exceeds the 100MB limit. Please upload a smaller file or provide a link.");
+    }
   };
 
   const validateCoverFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['png', 'jpg', 'jpeg', 'pdf'].includes(ext || '')) {
       throw new Error("Invalid cover format! Please upload a PNG, JPG, JPEG, or PDF file.");
+    }
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      throw new Error("Cover art file size exceeds the 10MB limit. Please upload a smaller file or provide a link.");
     }
   };
 
@@ -172,14 +182,12 @@ export default function ArtistUpload({ user }: { user: any }) {
       setSuccess(true);
       
     } catch (err: any) {
-      if(err.message?.includes('Missing or insufficient permissions')) {
+      if (err.code?.startsWith('storage/') || err.message?.includes("storage/")) {
+        setError("UPLOAD_ERROR");
+      } else if (err.message?.includes('Missing or insufficient permissions') && !err.message?.includes("storage/")) {
         handleFirestoreError(err, OperationType.CREATE, 'submissions');
       } else {
-        if (err.code?.startsWith('storage/')) {
-          setError("UPLOAD_ERROR");
-        } else {
-          setError(err.message || "Failed to submit release.");
-        }
+        setError(err.message || "Failed to submit release.");
       }
     } finally {
       setLoading(false);
@@ -357,13 +365,38 @@ export default function ArtistUpload({ user }: { user: any }) {
             
             {audioInputType === 'file' ? (
               <div>
-                <input 
-                  type="file" 
-                  accept=".mp3,.m4a,.wav,audio/*"
-                  onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
-                  className="w-full text-sm font-sans text-gray-400 file:mr-4 file:py-2 file:px-4 file:bg-[#333] file:border-none file:text-white file:cursor-pointer"
-                />
-                <p className="text-xs text-gray-500 mt-2 font-sans">Supported formats: MP3, M4A, WAV.</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <input 
+                    type="file" 
+                    accept=".mp3,.m4a,.wav,audio/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (file) {
+                        try {
+                          validateAudioFile(file);
+                          setAudioFile(file);
+                          setAudioError("");
+                          setError("");
+                        } catch (err: any) {
+                          setAudioError(err.message);
+                          setAudioFile(null);
+                          e.target.value = ''; // Reset input
+                        }
+                      } else {
+                        setAudioFile(null);
+                        setAudioError("");
+                      }
+                    }}
+                    className="flex-grow text-sm font-sans text-gray-400 file:mr-4 file:py-2 file:px-4 file:bg-[#333] file:border-none file:text-white file:cursor-pointer"
+                  />
+                  {audioFile && !audioError && (
+                    <span className="text-[#ccff00] flex items-center gap-1 text-sm font-display uppercase tracking-widest font-bold">
+                      <CheckCircle2 size={16} /> Selected
+                    </span>
+                  )}
+                </div>
+                {audioError && <p className="text-xs text-red-500 mt-2 font-display uppercase tracking-widest">{audioError}</p>}
+                <p className="text-xs text-gray-500 mt-2 font-sans">Supported formats: MP3, M4A, WAV. Max limit 100MB.</p>
               </div>
             ) : (
               <div>
@@ -392,13 +425,38 @@ export default function ArtistUpload({ user }: { user: any }) {
             
             {coverInputType === 'file' ? (
               <div>
-                <input 
-                  type="file" 
-                  accept=".png,.jpg,.jpeg,.pdf,image/*"
-                  onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
-                  className="w-full text-sm font-sans text-gray-400 file:mr-4 file:py-2 file:px-4 file:bg-[#333] file:border-none file:text-white file:cursor-pointer"
-                />
-                <p className="text-xs text-gray-500 mt-2 font-sans">Supported formats: PNG, JPG, JPEG, PDF. Minimum size 3000x3000px.</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <input 
+                    type="file" 
+                    accept=".png,.jpg,.jpeg,.pdf,image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (file) {
+                        try {
+                          validateCoverFile(file);
+                          setCoverFile(file);
+                          setCoverError("");
+                          setError("");
+                        } catch (err: any) {
+                          setCoverError(err.message);
+                          setCoverFile(null);
+                          e.target.value = ''; // Reset input
+                        }
+                      } else {
+                        setCoverFile(null);
+                        setCoverError("");
+                      }
+                    }}
+                    className="flex-grow text-sm font-sans text-gray-400 file:mr-4 file:py-2 file:px-4 file:bg-[#333] file:border-none file:text-white file:cursor-pointer"
+                  />
+                  {coverFile && !coverError && (
+                    <span className="text-[#ccff00] flex items-center gap-1 text-sm font-display uppercase tracking-widest font-bold">
+                      <CheckCircle2 size={16} /> Selected
+                    </span>
+                  )}
+                </div>
+                {coverError && <p className="text-xs text-red-500 mt-2 font-display uppercase tracking-widest">{coverError}</p>}
+                <p className="text-xs text-gray-500 mt-2 font-sans">Supported formats: PNG, JPG, JPEG, PDF. Minimum size 3000x3000px. Max limit 10MB.</p>
               </div>
             ) : (
               <div>

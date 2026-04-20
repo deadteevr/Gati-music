@@ -1,6 +1,6 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X } from 'lucide-react';
+import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X, CheckSquare } from 'lucide-react';
 import { logout } from '../lib/auth';
 
 import AdminHome from './admin/AdminHome';
@@ -13,6 +13,7 @@ import AdminNotifications from './admin/AdminNotifications';
 import AdminRoyalties from './admin/AdminRoyalties';
 import AdminWithdrawals from './admin/AdminWithdrawals';
 import AdminSettings from './admin/AdminSettings';
+import AdminTasks from './admin/AdminTasks';
 
 export default function AdminPanel({ user }: { user: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -26,6 +27,7 @@ export default function AdminPanel({ user }: { user: any }) {
     { name: "Dashboard", path: "/admin", icon: <Home size={18} /> },
     { name: "Artists", path: "/admin/artists", icon: <Users size={18} /> },
     { name: "Songs", path: "/admin/songs", icon: <Music size={18} /> },
+    { name: "Tasks", path: "/admin/tasks", icon: <CheckSquare size={18} /> },
     { name: "Bulk Streams", path: "/admin/streams", icon: <Database size={18} /> },
     { name: "Notifications", path: "/admin/notifications", icon: <Bell size={18} /> },
     { name: "Royalties", path: "/admin/royalties", icon: <IndianRupee size={18} /> },
@@ -100,6 +102,7 @@ export default function AdminPanel({ user }: { user: any }) {
             <Route path="/artists/:uid" element={<AdminArtistProfile />} />
             <Route path="/songs" element={<AdminSongs />} />
             <Route path="/songs/:id" element={<AdminSongDetail />} />
+            <Route path="/tasks" element={<AdminTasks />} />
             <Route path="/streams" element={<AdminBulkStreams />} />
             <Route path="/notifications" element={<AdminNotifications />} />
             <Route path="/royalties" element={<AdminRoyalties />} />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { ArrowLeft, Save, Download, AlertTriangle, Check, ExternalLink, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
 export default function AdminSongDetail() {
@@ -13,8 +13,12 @@ export default function AdminSongDetail() {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
   
+  // UI Tabs
+  const [activeTab, setActiveTab] = useState('Basic'); // Basic, Credits, Platform, History
+  
   // AI State
   const [aiChecking, setAiChecking] = useState(false);
+  const [aiCheckReport, setAiCheckReport] = useState<string | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
 
   // Changes Required Modal State
@@ -49,8 +53,53 @@ export default function AdminSongDetail() {
   const handleSaveMetadata = async () => {
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'submissions', id!), formData);
-      alert('Metadata saved');
+      const prevVersions = song.metadataVersions || [];
+      const currentSnapshot = { ...song };
+      delete currentSnapshot.id;
+      delete currentSnapshot.metadataVersions;
+
+      await updateDoc(doc(db, 'submissions', id!), {
+        ...formData,
+        metadataVersions: [
+          {
+            timestamp: new Date().toISOString(),
+            editor: 'Administrator',
+            snapshot: currentSnapshot
+          },
+          ...prevVersions
+        ]
+      });
+      alert('Metadata saved successfully!');
+      fetchSong();
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `submissions/${id}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const revertToVersion = async (version: any) => {
+    if (!window.confirm("Are you sure you want to revert to this version? Current unsaved changes will be lost, and a new version will be created.")) return;
+    
+    setSaving(true);
+    try {
+      const prevVersions = song.metadataVersions || [];
+      const currentSnapshot = { ...song };
+      delete currentSnapshot.id;
+      delete currentSnapshot.metadataVersions;
+
+      await updateDoc(doc(db, 'submissions', id!), {
+        ...version.snapshot,
+        metadataVersions: [
+          {
+            timestamp: new Date().toISOString(),
+            editor: 'Administrator (Revert Action)',
+            snapshot: currentSnapshot
+          },
+          ...prevVersions
+        ]
+      });
+      alert('Successfully reverted to historical version.');
       fetchSong();
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `submissions/${id}`);
@@ -113,20 +162,21 @@ export default function AdminSongDetail() {
 
   const handleAiMetaCheck = async () => {
     setAiChecking(true);
+    setAiCheckReport(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Review this music metadata. Check for standard capitalization, spelling, and consistency issues. Provide a very brief (2 sentence max) analysis.
-      Title: ${formData.title}
-      Main Artist: ${formData.mainArtist}
-      Genre: ${formData.primaryGenre}
-      P Line: ${formData.pLine}`;
+      const prompt = `Review this music metadata. Check for potential issues like capitalization errors (e.g. all caps or non-standard title casing), spelling mistakes, and inconsistent naming conventions. Provide a brief, actionable report.
+      Title: "${formData.title || ''}"
+      Main Artist: "${formData.mainArtist || ''}"
+      Genre: "${formData.primaryGenre || ''}"
+      P Line: "${formData.pLine || ''}"`;
       
       const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
         contents: prompt
       });
       
-      alert("AI Meta-Check: \n\n" + response.text);
+      setAiCheckReport(response.text || "No report generated.");
     } catch (e) {
       console.error(e);
       alert("AI Meta-Check Failed.");
@@ -139,15 +189,23 @@ export default function AdminSongDetail() {
     setAiGenerating(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `You are a music distribution assistant. Format an actionable 'Changes Required' note based on the issue type: "${issueType}" and contextual notes: "${problemDesc}".
+      Rules:
+      - Explain the issue clearly in 'problemDesc'.
+      - Provide a step-by-step solution in 'solutionDesc'.
+      - Keep tone professional and helpful.
+      - Max 120 words total.
+      - Format strictly as JSON: {"problemDesc": "string", "solutionDesc": "string"}`;
+      
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Generate a highly professional, brief description and exact solution for a music distributor rejecting a track due to the issue: "${issueType}". Format strictly as JSON: {"problemDesc": "string", "solutionDesc": "string"}`,
+        contents: prompt,
         config: { responseMimeType: "application/json" }
       });
       const jsonStr = response.text?.trim() || "{}";
       const data = JSON.parse(jsonStr);
       if (data.problemDesc) setProblemDesc(data.problemDesc);
-      if (data.solutionDesc) setSolutionDesc(data.solutionDesc);
+      if (data.solutionDesc) setSolutionDesc(data.solutionDesc + "\n\nOnce fixed, please resubmit your release.");
     } catch (e) {
       console.error(e);
       alert("AI Note Generation Failed.");
@@ -158,6 +216,8 @@ export default function AdminSongDetail() {
 
   if (loading) return <div className="text-white p-8">Loading submission...</div>;
   if (!song) return <div className="text-white p-8">Song not found</div>;
+
+  const versions = song.metadataVersions || [];
 
   return (
     <div className="max-w-6xl mx-auto pb-20 space-y-8 relative">
@@ -193,16 +253,18 @@ export default function AdminSongDetail() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         
-        {/* LEFT COMP: METADATA */}
+        {/* LEFT COMP: METADATA TABS */}
         <div className="col-span-2 space-y-6">
           <div className="bg-[#111] border border-[#333] p-6">
-            <div className="border-b border-[#333] pb-4 mb-6 flex justify-between items-center">
+            
+            {/* Header & Main Actions */}
+            <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-lg font-display uppercase tracking-widest text-[#9d4edd]">Edit Metadata</h2>
                 <p className="text-xs text-gray-500 font-sans">Fix spelling or missing info manually before delivery</p>
               </div>
               <div className="flex items-center gap-3">
-                <button 
+                 <button 
                   onClick={handleAiMetaCheck}
                   disabled={aiChecking}
                   className="bg-[#222] border border-[#9d4edd] text-[#9d4edd] px-4 py-2 text-xs uppercase font-display font-bold tracking-widest flex items-center gap-2 hover:bg-[#9d4edd] hover:text-white transition-colors"
@@ -219,35 +281,109 @@ export default function AdminSongDetail() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 font-sans">
-                <Input name="title" label="Song Title" value={formData.title} onChange={handleMetadataChange} />
-                <Input name="mainArtist" label="Main Artist" value={formData.mainArtist} onChange={handleMetadataChange} />
-                <Input name="primaryGenre" label="Primary Genre" value={formData.primaryGenre} onChange={handleMetadataChange} />
-                <Input name="secondaryGenre" label="Secondary Genre" value={formData.secondaryGenre} onChange={handleMetadataChange} />
-                
-                <div className="col-span-2">
-                  <Input name="scheduleDate" label="Schedule Release Date" type="date" value={formData.scheduleDate} onChange={handleMetadataChange} />
-                </div>
+            {/* TAB CONTROLS */}
+            <div className="flex gap-2 border-b border-[#333] pb-4 mb-6 overflow-x-auto">
+              {['Basic', 'Credits', 'Platform', 'History'].map(tab => (
+                 <button 
+                   key={tab}
+                   onClick={() => setActiveTab(tab)}
+                   className={`px-4 py-2 font-display uppercase tracking-widest text-xs font-bold transition-colors whitespace-nowrap ${
+                     activeTab === tab 
+                       ? 'bg-[#ccff00] text-black' 
+                       : 'bg-[#222] text-gray-400 hover:text-white'
+                   }`}
+                 >
+                   {tab === 'History' && <History size={12} className="inline mr-1" />}
+                   {tab}
+                 </button>
+              ))}
+            </div>
 
-                <div className="col-span-2 border-t border-[#333] pt-4 mt-2">
-                  <h3 className="text-xs font-display uppercase tracking-widest text-gray-400 mb-4">Copyright & Labels</h3>
+            {/* TAB CONTENTS */}
+            <div className="font-sans">
+              
+              {aiCheckReport && (
+                <div className="mb-6 bg-[#1a1a1a] border border-[#9d4edd]/50 p-4 relative">
+                  <button onClick={() => setAiCheckReport(null)} className="absolute top-2 right-2 text-gray-400 hover:text-white">x</button>
+                  <h3 className="text-[#9d4edd] font-display uppercase tracking-widest text-xs font-bold mb-2 flex items-center gap-2"><Sparkles size={14}/> Metadata Analysis Report</h3>
+                  <div className="text-sm text-gray-300 font-sans whitespace-pre-wrap">{aiCheckReport}</div>
                 </div>
-                <Input name="pLine" label="P Line (Phonographic)" value={formData.pLine} onChange={handleMetadataChange} />
-                <Input name="cLine" label="C Line (Copyright)" value={formData.cLine} onChange={handleMetadataChange} />
-                <Input name="labelName" label="Label Name" value={formData.labelName} onChange={handleMetadataChange} />
+              )}
 
-                <div className="col-span-2 border-t border-[#333] pt-4 mt-2">
-                  <h3 className="text-xs font-display uppercase tracking-widest text-gray-400 mb-4">Credits</h3>
+              {activeTab === 'Basic' && (
+                <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-300">
+                  <Input name="title" label="Song Title" value={formData.title} onChange={handleMetadataChange} />
+                  <Input name="mainArtist" label="Main Artist" value={formData.mainArtist} onChange={handleMetadataChange} />
+                  <Input name="primaryGenre" label="Primary Genre" value={formData.primaryGenre} onChange={handleMetadataChange} />
+                  <Input name="secondaryGenre" label="Secondary Genre" value={formData.secondaryGenre} onChange={handleMetadataChange} />
+                  <div className="col-span-1 md:col-span-2">
+                    <Input name="scheduleDate" label="Schedule Release Date" type="date" value={formData.scheduleDate} onChange={handleMetadataChange} />
+                  </div>
+                  
+                  <div className="col-span-1 md:col-span-2 border-t border-[#333] pt-4 mt-2">
+                    <h3 className="text-xs font-display uppercase tracking-widest text-gray-400 mb-4">Copyright & Labels</h3>
+                  </div>
+                  <Input name="pLine" label="P Line (Phonographic)" value={formData.pLine} onChange={handleMetadataChange} />
+                  <Input name="cLine" label="C Line (Copyright)" value={formData.cLine} onChange={handleMetadataChange} />
+                  <div className="col-span-1 md:col-span-2">
+                    <Input name="labelName" label="Label Name" value={formData.labelName} onChange={handleMetadataChange} />
+                  </div>
                 </div>
-                <Input name="lyricist" label="Lyricist" value={formData.lyricist} onChange={handleMetadataChange} />
-                <Input name="composer" label="Composer" value={formData.composer} onChange={handleMetadataChange} />
-                <Input name="producer" label="Producer" value={formData.producer} onChange={handleMetadataChange} />
-                
-                <div className="col-span-2 border-t border-[#333] pt-4 mt-2">
-                  <h3 className="text-xs font-display uppercase tracking-widest text-gray-400 mb-4">Platform Specifics</h3>
+              )}
+
+              {activeTab === 'Credits' && (
+                <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-300">
+                  <Input name="lyricist" label="Lyricist" value={formData.lyricist} onChange={handleMetadataChange} />
+                  <Input name="composer" label="Composer" value={formData.composer} onChange={handleMetadataChange} />
+                  <Input name="producer" label="Producer" value={formData.producer} onChange={handleMetadataChange} />
+                  <Input name="featuredArtists" label="Featured Artists" value={formData.featuredArtists} onChange={handleMetadataChange} />
+                  <div className="col-span-1 md:col-span-2">
+                    <Input name="otherCredits" label="Misc / Other Credits" value={formData.otherCredits} onChange={handleMetadataChange} />
+                  </div>
                 </div>
-                <Input name="excludedPlatforms" label="Excluded Platforms" value={formData.excludedPlatforms} onChange={handleMetadataChange} />
-                <Input name="mainSpotifyLink" label="Artist Spotify Link" value={formData.mainSpotifyLink} onChange={handleMetadataChange} />
+              )}
+
+              {activeTab === 'Platform' && (
+                <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-300">
+                  <div className="col-span-1 md:col-span-2">
+                    <Input name="excludedPlatforms" label="Excluded Platforms" value={formData.excludedPlatforms} onChange={handleMetadataChange} />
+                  </div>
+                  <Input name="mainSpotifyLink" label="Artist Spotify Link" value={formData.mainSpotifyLink} onChange={handleMetadataChange} />
+                  <Input name="featureSpotifyLinks" label="Featured Spotify Links" value={formData.featureSpotifyLinks} onChange={handleMetadataChange} />
+                </div>
+              )}
+
+              {activeTab === 'History' && (
+                <div className="animate-in fade-in duration-300">
+                  {versions.length === 0 ? (
+                    <div className="text-center p-8 bg-[#1a1a1a] border border-[#333] text-gray-500 text-sm">
+                      No version history found. Save changes to create a new version.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {versions.map((ver: any, i: number) => (
+                        <div key={i} className="bg-[#1a1a1a] border border-[#333] p-4 flex justify-between items-center group">
+                          <div>
+                            <div className="font-display tracking-widest text-[#9d4edd] uppercase text-xs font-bold mb-1">
+                              {new Date(ver.timestamp).toLocaleString()}
+                            </div>
+                            <div className="text-gray-400 text-xs font-sans">
+                              Saved by: {ver.editor || 'System'}
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => revertToVersion(ver)}
+                            className="text-[#ccff00] border border-[#ccff00] px-3 py-1 font-display uppercase tracking-widest text-[10px] font-bold hover:bg-[#ccff00] hover:text-black transition-colors flex items-center gap-1 opacity-0 group-hover:opacity-100"
+                          >
+                            <RotateCcw size={12} /> Revert
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -263,8 +399,8 @@ export default function AdminSongDetail() {
                 {song.coverUrl ? (
                   <div className="space-y-3">
                     <img src={song.coverUrl} alt="Cover" className="w-full aspect-square object-cover border border-[#333]" referrerPolicy="no-referrer" />
-                    <a href={song.coverUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#222] hover:bg-[#333] text-white py-2 text-xs font-display uppercase tracking-widest transition-colors">
-                      <Download size={14} /> Download Image
+                    <a href={song.coverUrl} download={`Cover_${song.title}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#222] hover:bg-[#333] text-white py-2 text-xs font-display uppercase tracking-widest transition-colors">
+                      <Download size={14} /> Download Cover Art
                     </a>
                   </div>
                 ) : (
@@ -275,8 +411,8 @@ export default function AdminSongDetail() {
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 border-b border-[#222] pb-1">Audio File</p>
                 {song.audioUrl ? (
-                  <a href={song.audioUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#ccff00] text-black hover:bg-white py-3 text-xs font-display font-bold uppercase tracking-widest transition-colors shadow">
-                    <Download size={14} /> Access Audio File
+                  <a href={song.audioUrl} download={`Audio_${song.title}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#ccff00] text-black hover:bg-white py-3 text-xs font-display font-bold uppercase tracking-widest transition-colors shadow">
+                    <Download size={14} /> Download Audio
                   </a>
                 ) : (
                    <p className="text-sm text-gray-500 italic">No audio provided.</p>

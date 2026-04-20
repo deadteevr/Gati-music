@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Music, TrendingUp, TrendingDown, Radio, Activity, CalendarDays, Bell } from 'lucide-react';
@@ -14,7 +14,8 @@ export default function ArtistHome({ user }: { user: any }) {
     liveSongs: 0, 
     inProgress: 0, 
     totalEarnings: 0, 
-    currentMonthEarnings: 0 
+    currentMonthEarnings: 0,
+    totalStreams: 0 
   });
   const [chartData, setChartData] = useState<any[]>([]);
   const [pieData, setPieData] = useState<any[]>([]);
@@ -25,94 +26,113 @@ export default function ArtistHome({ user }: { user: any }) {
   const COLORS = ['#ccff00', '#9d4edd', '#ffffff', '#777777', '#333333', '#111111'];
 
   useEffect(() => {
+    let unsubSub: any;
+    let unsubRoy: any;
+
     const fetchSummary = async () => {
       try {
+        setLoading(true);
         // Fetch Submissions
         const subQuery = query(collection(db, 'submissions'), where('uid', '==', user.uid));
-        const subDocs = await getDocs(subQuery);
         
-        let liveCount = 0;
-        let progressCount = 0;
-        
-        subDocs.forEach(d => {
-          const status = d.data().status;
-          if (status === 'live') {
-            liveCount++;
-          } else {
-            progressCount++;
-          }
+        unsubSub = onSnapshot(subQuery, (subDocs) => {
+          let liveCount = 0;
+          let progressCount = 0;
+          let totalStreamsCalc = 0;
+          const aggregatedStreams: Record<string, number> = {};
+          
+          subDocs.forEach(d => {
+            const data = d.data();
+            const status = data.status;
+            if (status === 'live' || status === 'Live') {
+              liveCount++;
+            } else {
+              progressCount++;
+            }
+
+            if (data.streams) {
+              totalStreamsCalc += Number(data.streams.total || 0);
+              for (const [platform, count] of Object.entries(data.streams)) {
+                if (platform !== 'total' && Number(count) > 0) {
+                  aggregatedStreams[platform] = (aggregatedStreams[platform] || 0) + Number(count);
+                }
+              }
+            }
+          });
+
+          const formattedPieData = Object.keys(aggregatedStreams)
+            .map(platform => ({
+              name: platform.charAt(0).toUpperCase() + platform.slice(1),
+              value: aggregatedStreams[platform]
+            }))
+            .sort((a, b) => b.value - a.value);
+
+          setPieData(formattedPieData);
+
+          setStats(prev => ({
+            ...prev,
+            totalSongs: subDocs.size,
+            liveSongs: liveCount,
+            inProgress: progressCount,
+            totalStreams: totalStreamsCalc
+          }));
         });
 
         // Fetch Royalties
         const royQuery = query(collection(db, 'royalties'), where('uid', '==', user.uid));
-        const royDocs = await getDocs(royQuery);
-        
-        let totalEarnings = 0;
-        const royaltiesList: any[] = [];
-        
-        royDocs.forEach(d => {
-          const data = d.data();
-          totalEarnings += data.amount || 0;
-          royaltiesList.push(data);
-        });
-
-        royaltiesList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-        const monthlyData = royaltiesList.map(r => ({
-          month: r.reportMonth,
-          earnings: r.amount
-        }));
-
-        setChartData(monthlyData);
-
-        let currentMonthEarnings = 0;
-        if (royaltiesList.length > 0) {
-          currentMonthEarnings = royaltiesList[royaltiesList.length - 1].amount;
-        }
-
-        // Calc Growth
-        if (royaltiesList.length >= 2) {
-          const curr = royaltiesList[royaltiesList.length - 1].amount;
-          const prev = royaltiesList[royaltiesList.length - 2].amount;
-          if (prev > 0) {
-            setGrowth(((curr - prev) / prev) * 100);
-          } else if (curr > 0) {
-            setGrowth(100);
-          } else {
-            setGrowth(0);
-          }
-        } else if (royaltiesList.length === 1) {
-          if (royaltiesList[0].amount > 0) setGrowth(100);
-        }
-
-        // Streams Breakdown
-        const aggregatedStreams: Record<string, number> = {};
-        let hasStreams = false;
-        
-        royaltiesList.forEach(r => {
-          if (r.streamsBreakdown) {
-            try {
-              const breakdown = JSON.parse(r.streamsBreakdown);
-              for (const [platform, streams] of Object.entries(breakdown)) {
-                aggregatedStreams[platform] = (aggregatedStreams[platform] || 0) + Number(streams);
-                hasStreams = true;
-              }
-            } catch (e) {
-              console.error("Failed to parse streams breakdown", e);
-            }
-          }
-        });
-
-        if (hasStreams) {
-          const formattedPieData = Object.keys(aggregatedStreams)
-            .map(platform => ({
-              name: platform,
-              value: aggregatedStreams[platform]
-            }))
-            .sort((a, b) => b.value - a.value); 
+        unsubRoy = onSnapshot(royQuery, (royDocs) => {
+          let totalEarnings = 0;
+          const royaltiesList: any[] = [];
           
-          setPieData(formattedPieData);
-        }
+          royDocs.forEach(d => {
+            const data = d.data();
+            totalEarnings += data.amount || 0;
+            royaltiesList.push(data);
+          });
+
+          // Sort by date properly for trend context
+          royaltiesList.sort((a, b) => {
+            const parseMonth = (str: string) => new Date(`${str} 1`).getTime();
+            return parseMonth(a.reportMonth) - parseMonth(b.reportMonth);
+          });
+
+          const monthlyData = royaltiesList.map(r => ({
+            month: r.reportMonth,
+            earnings: Number(r.amount)
+          }));
+
+          setChartData(monthlyData);
+
+          let currentMonthEarnings = 0;
+          if (royaltiesList.length > 0) {
+            currentMonthEarnings = royaltiesList[royaltiesList.length - 1].amount;
+          }
+
+          // Calc Growth
+          let growthCalc = null;
+          if (royaltiesList.length >= 2) {
+            const curr = royaltiesList[royaltiesList.length - 1].amount;
+            const prev = royaltiesList[royaltiesList.length - 2].amount;
+            if (prev > 0) {
+              growthCalc = ((curr - prev) / prev) * 100;
+            } else if (curr > 0) {
+              growthCalc = 100;
+            } else {
+              growthCalc = 0;
+            }
+          } else if (royaltiesList.length === 1) {
+            if (royaltiesList[0].amount > 0) growthCalc = 100;
+          }
+          setGrowth(growthCalc);
+
+          setStats(prev => ({
+            ...prev,
+            totalEarnings,
+            currentMonthEarnings
+          }));
+          
+          setLoading(false);
+        });
 
         // Recent Activity (Notifications limit 3)
         const notifQuery = query(collection(db, 'notifications'), where('uid', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
@@ -123,21 +143,18 @@ export default function ArtistHome({ user }: { user: any }) {
         });
         setRecentActivity(activityList);
 
-        setStats({
-          totalSongs: subDocs.size,
-          liveSongs: liveCount,
-          inProgress: progressCount,
-          totalEarnings,
-          currentMonthEarnings
-        });
-
       } catch (e) {
         console.error(e);
-      } finally {
         setLoading(false);
       }
     };
+    
     fetchSummary();
+
+    return () => {
+      if (unsubSub) unsubSub();
+      if (unsubRoy) unsubRoy();
+    };
   }, [user.uid]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -175,11 +192,11 @@ export default function ArtistHome({ user }: { user: any }) {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-10">
         <div className="bg-[#111] border border-[#333] p-5 relative overflow-hidden group">
           <div className="flex items-center justify-between text-gray-400 mb-4">
-            <span className="font-display font-medium uppercase text-xs tracking-widest z-10 relative">Total Songs</span>
-            <Music size={18} className="z-10 relative" opacity={0.5} />
+            <span className="font-display font-medium uppercase text-xs tracking-widest z-10 relative">Total Streams</span>
+            <Activity size={18} className="z-10 relative" opacity={0.5} />
           </div>
-          <div className="text-4xl font-display text-white z-10 relative">
-            {loading ? '-' : stats.totalSongs}
+          <div className="text-4xl font-display text-white z-10 relative truncate">
+            {loading ? '-' : stats.totalStreams.toLocaleString()}
           </div>
         </div>
 
@@ -196,7 +213,7 @@ export default function ArtistHome({ user }: { user: any }) {
         <div className="bg-[#111] border border-[#333] p-5 relative overflow-hidden group">
           <div className="flex items-center justify-between text-yellow-500 mb-4">
             <span className="font-display font-medium uppercase text-xs tracking-widest z-10 relative">In Progress</span>
-            <Activity size={18} className="z-10 relative" opacity={0.8} />
+            <Music size={18} className="z-10 relative" opacity={0.8} />
           </div>
           <div className="text-4xl font-display text-white z-10 relative">
             {loading ? '-' : stats.inProgress}
