@@ -32,6 +32,8 @@ export default function AdminHome() {
       });
       
       setStats(s => ({ ...s, totalArtists: users.length, totalStreams: totalPlatformStreams }));
+    }, (error) => {
+      console.error("AdminHome: users snapshot error", error);
     });
 
     // Fetch songs
@@ -48,6 +50,8 @@ export default function AdminHome() {
       // Recent Activity - using songs as a proxy for recent activity for now
       const sortedSongs = snap.docs.map(d => ({id: d.id, ...d.data(), type: 'submission'})).sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5);
       setRecentActivity(sortedSongs);
+    }, (error) => {
+      console.error("AdminHome: songs snapshot error", error);
     });
 
     // Fetch withdrawals
@@ -58,6 +62,8 @@ export default function AdminHome() {
         if (d.data().status === 'Pending') pending++;
       });
       setStats(s => ({ ...s, pendingWithdrawals: pending }));
+    }, (error) => {
+      console.error("AdminHome: withdrawals snapshot error", error);
     });
 
     // Fetch global Royalties for Charts
@@ -103,6 +109,8 @@ export default function AdminHome() {
 
       setMonthlyEarningsData(formatData(earningsByMonth, 'earnings'));
       setMonthlyStreamsData(formatData(streamsByMonth, 'streams'));
+    }, (error) => {
+      console.error("AdminHome: royalties snapshot error", error);
     });
     
     return () => {

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowRight, 
@@ -13,6 +13,7 @@ import {
   UploadCloud,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Menu,
   X,
   MessageCircle,
@@ -90,23 +91,47 @@ const MessageCircleIcon = () => (
   </svg>
 );
 
+// --- Hooks ---
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
+
 export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const isMobile = useIsMobile();
+  const heroRef = useRef(null);
+
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"]
+  });
+
+  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", isMobile ? "0%" : "30%"]);
+  const textY = useTransform(scrollYProgress, [0, 1], ["0%", isMobile ? "0%" : "50%"]);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] selection:bg-[#B6FF00] selection:text-black font-sans">
+    <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] selection:bg-[#B6FF00] selection:text-black font-sans overflow-x-hidden">
       
       {/* Navbar */}
-      <nav className={`fixed top-0 w-full px-6 flex justify-between items-center z-50 transition-all duration-300 ${isScrolled ? 'bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-[#222] shadow-[0_4px_30px_rgba(0,0,0,0.5)] py-3' : 'bg-transparent py-5'}`}>
+      <nav className={`fixed top-0 left-0 right-0 w-full px-4 md:px-6 flex justify-between items-center z-50 transition-all duration-300 ${isScrolled ? 'bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-[#222] shadow-[0_4px_30px_rgba(0,0,0,0.5)] py-3' : 'bg-transparent py-5'}`}>
         <Logo isScrolled={isScrolled} />
         
         {/* Desktop Nav */}
@@ -128,8 +153,8 @@ export default function LandingPage() {
         </div>
 
         {/* Mobile Menu Toggle */}
-        <button className="md:hidden text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+        <button className="md:hidden text-white p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </nav>
 
@@ -137,25 +162,53 @@ export default function LandingPage() {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 z-40 bg-[#0a0a0a] pt-24 px-6 flex flex-col gap-6"
+            initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-40 bg-[#0a0a0a] pt-24 px-6 flex flex-col gap-8 h-screen overflow-y-auto"
           >
-            <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">How it Works</a>
-            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">Why Gati</a>
-            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">Plans & Pricing</a>
-            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#333] pb-4">FAQ</a>
-            <Link to="/login" className="text-2xl font-display uppercase tracking-widest text-[#ccff00] border-b border-[#333] pb-4">Artist Login</Link>
+            <div className="flex flex-col gap-6">
+              <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">How it Works</a>
+              <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">Why Gati</a>
+              <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">Plans & Pricing</a>
+              <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">FAQ</a>
+              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-[#ccff00] border-b border-[#1a1a1a] pb-4">Artist Login</Link>
+            </div>
+            
+            <WhatsAppButton 
+              text="Contact Support" 
+              className="mt-4 bg-[#B6FF00] text-black w-full px-8 py-5 rounded-md shadow-[0_0_30px_rgba(182,255,0,0.2)]" 
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-6 sm:px-12 flex flex-col items-center justify-center min-h-[90vh] text-center overflow-hidden">
-        {/* Animated Gradient Background & Noise */}
-        <div className="absolute inset-0 bg-[#0A0A0A] -z-20"></div>
-        <div className="absolute top-1/4 left-1/4 w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-gradient-to-tr from-[#8B5CF6]/20 to-[#B6FF00]/20 rounded-full mix-blend-screen filter blur-[80px] md:blur-[120px] opacity-40 md:opacity-60 animate-pulse -z-10"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-gradient-to-bl from-[#3B82F6]/20 to-[#8B5CF6]/20 rounded-full mix-blend-screen filter blur-[60px] md:blur-[100px] opacity-30 md:opacity-50 animate-pulse -z-10" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute inset-0 opacity-[0.03] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] -z-10 bg-repeat"></div>
+      <section ref={heroRef} className="relative pt-32 pb-20 px-6 sm:px-12 flex flex-col items-center justify-center min-h-[90vh] text-center overflow-hidden">
+        {/* Parallax Background Image */}
+        <motion.div 
+          style={{ y: bgY }}
+          className="absolute inset-0 -z-30 scale-110 h-[120%]"
+        >
+          <img 
+            src="https://picsum.photos/seed/studio-recording/1920/1080?blur=10" 
+            alt="Music Studio Background" 
+            className="w-full h-full object-cover grayscale opacity-30 brightness-[0.4]"
+            referrerPolicy="no-referrer"
+            loading="eager"
+            decoding="async"
+          />
+          {/* Dark Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/40 to-[#0A0A0A]"></div>
+        </motion.div>
+
+        {/* Animated Gradient Grids & Glows */}
+        {!isMobile && (
+          <>
+            <div className="absolute top-1/4 left-1/4 w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-gradient-to-tr from-[#8B5CF6]/10 to-[#B6FF00]/10 rounded-full mix-blend-screen filter blur-[80px] md:blur-[120px] opacity-30 md:opacity-50 animate-pulse -z-10 will-change-[filter,opacity]"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-gradient-to-bl from-[#3B82F6]/10 to-[#8B5CF6]/10 rounded-full mix-blend-screen filter blur-[60px] md:blur-[100px] opacity-20 md:opacity-40 animate-pulse -z-10 will-change-[filter,opacity]" style={{ animationDelay: '2s' }}></div>
+          </>
+        )}
+        <div className="absolute inset-0 opacity-[0.05] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] -z-10 bg-repeat"></div>
         
         {/* Subtle Watermark Logo */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[30vw] font-display font-black text-white/[0.01] leading-none pointer-events-none select-none -z-10 tracking-tighter mix-blend-overlay">
@@ -163,29 +216,39 @@ export default function LandingPage() {
         </div>
 
         <motion.div 
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          style={{ y: textY }}
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 0.6 }}
           className="relative z-10"
         >
-          <div className="mb-8 inline-block border border-[#B6FF00]/40 text-[#B6FF00] px-5 py-2.5 font-bold font-display uppercase tracking-widest text-xs bg-[#B6FF00]/5 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(182,255,0,0.15)]">
+          <div className="mb-8 inline-block border border-[#B6FF00]/40 text-[#B6FF00] px-5 py-2.5 font-bold font-display uppercase tracking-widest text-[10px] md:text-xs bg-[#B6FF00]/5 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(182,255,0,0.15)]">
             For the Artist, By the Artists
           </div>
           
-          <h1 className="text-[9vw] sm:text-[5.5vw] md:text-7xl leading-[0.9] font-display uppercase tracking-tighter mb-8 max-w-5xl mx-auto text-white">
-            Gati Music Distribution <br className="hidden md:block"/> <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#B6FF00] via-[#8B5CF6] to-[#3B82F6]">Release Music Worldwide</span>
-          </h1>
+          <div className="relative mb-8">
+            {/* Soft glow behind heading */}
+            {!isMobile && <div className="absolute inset-0 bg-[#B6FF00]/20 blur-[80px] -z-10 rounded-full scale-75 opacity-50 will-change-transform"></div>}
+            <h1 className="text-[12vw] sm:text-[8vw] md:text-8xl leading-[0.85] font-display uppercase tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+              Gati Music Distribution <br className="hidden md:block"/> 
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#B6FF00] via-[#8B5CF6] to-[#3B82F6] drop-shadow-[0_0_15px_rgba(182,255,0,0.3)]">
+                Release Music Worldwide
+              </span>
+            </h1>
+          </div>
 
-          <p className="text-lg md:text-xl text-gray-400 font-sans max-w-2xl mx-auto mb-12 leading-relaxed">
-            The fastest music distribution service in India. Upload your music to Spotify, Apple Music & 250+ platforms with affordable distribution for independent artists. Fast approval and direct WhatsApp support.
+          <p className="text-base md:text-xl text-gray-400 font-sans max-w-2xl mx-auto mb-12 leading-relaxed px-4">
+            The fastest music distribution service in India. Upload your music to Spotify, Apple Music & 250+ platforms with professional tools for independent artists.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center px-6">
             <WhatsAppButton 
-              text="Start Now on WhatsApp" 
-              className="bg-[#B6FF00] text-black w-full sm:w-auto px-8 py-5 rounded-md hover:bg-white hover:scale-105 hover:shadow-[0_0_30px_rgba(182,255,0,0.4)] duration-300" 
+              text="Release Your Music" 
+              className="bg-[#B6FF00] text-black w-full sm:w-auto px-10 py-5 rounded-full hover:bg-white hover:scale-105 hover:shadow-[0_0_40px_rgba(182,255,0,0.5)] duration-300 font-black text-lg" 
             />
             <a 
               href="#pricing"
-              className="inline-flex items-center justify-center gap-2 font-display uppercase tracking-widest font-bold border border-[#333] bg-[#0A0A0A]/50 backdrop-blur-md text-white w-full sm:w-auto px-8 py-5 rounded-md hover:bg-[#111] hover:border-[#8B5CF6] hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
+              className="inline-flex items-center justify-center gap-2 font-display uppercase tracking-widest font-bold border border-[#333] bg-[#0A0A0A]/50 backdrop-blur-md text-white w-full sm:w-auto px-10 py-5 rounded-full hover:bg-[#111] hover:border-[#8B5CF6] hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300 text-sm"
             >
               View Plans
             </a>
@@ -196,22 +259,24 @@ export default function LandingPage() {
       {/* Trust Bar */}
       <section className="relative py-20 border-y border-[#1a1a1a] bg-[#0A0A0A] overflow-hidden">
         {/* Animated Waveform Background */}
-        <motion.div 
-          animate={{ opacity: [0.05, 0.2, 0.05] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute inset-0 flex items-center justify-center gap-2 md:gap-3 px-4 mix-blend-screen pointer-events-none"
-        >
-          {[...Array(40)].map((_, i) => (
-            <motion.div 
-              key={i} 
-              className="w-1 md:w-2 bg-gradient-to-t from-[#B6FF00] to-[#8B5CF6] rounded-full" 
-              animate={{ height: ['20%', '80%', '40%', '100%', '30%'] }}
-              transition={{ repeat: Infinity, duration: 1.5 + Math.random() * 2, ease: "easeInOut", delay: Math.random() }}
-            />
-          ))}
-        </motion.div>
+        {!isMobile && (
+          <motion.div 
+            animate={{ opacity: [0.05, 0.2, 0.05] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 flex items-center justify-center gap-2 md:gap-3 px-4 mix-blend-screen pointer-events-none"
+          >
+            {[...Array(40)].map((_, i) => (
+              <motion.div 
+                key={i} 
+                className="w-1 md:w-2 bg-gradient-to-t from-[#B6FF00] to-[#8B5CF6] rounded-full will-change-[height]" 
+                animate={{ height: ['20%', '80%', '40%', '100%', '30%'] }}
+                transition={{ repeat: Infinity, duration: 1.5 + Math.random() * 2, ease: "easeInOut", delay: Math.random() }}
+              />
+            ))}
+          </motion.div>
+        )}
         <div className="relative z-10 max-w-6xl mx-auto px-6">
-          <div className="flex justify-center items-center gap-12 md:gap-20 flex-wrap opacity-60 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-500">
+          <div className="flex justify-center items-center gap-8 md:gap-20 flex-wrap opacity-60 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-500">
             <a href="#" className="hover:scale-110 transition-all duration-300 group">
               <img loading="lazy" decoding="async" src="https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg" alt="Spotify" className="h-8 md:h-10 object-contain group-hover:drop-shadow-[0_0_20px_rgba(182,255,0,0.8)] transition-all duration-300" referrerPolicy="no-referrer" />
             </a>
@@ -261,16 +326,16 @@ export default function LandingPage() {
             <div className="lg:hidden absolute top-[10%] bottom-[10%] left-1/2 -translate-x-1/2 w-px bg-gradient-to-b from-[#B6FF00]/20 via-[#3B82F6]/20 to-[#EC4899]/20 -z-10"></div>
             
             <motion.div variants={itemVariants} className="w-full">
-              <StepCard index={0} number="01" icon={<Zap />} title="Choose Plan" desc="Select the premium distribution plan that fits your goals correctly." colorTheme="green" />
+              <StepCard index={0} number="01" icon={<Zap />} title="Choose Plan" desc="Select the premium distribution plan that fits your goals correctly." colorTheme="green" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <StepCard index={1} number="02" icon={<UploadCloud />} title="Upload Song" desc="Fill details, metadata, and upload your high quality audio." colorTheme="blue" />
+              <StepCard index={1} number="02" icon={<UploadCloud />} title="Upload Song" desc="Fill details, metadata, and upload your high quality audio." colorTheme="blue" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <StepCard index={2} number="03" icon={<ShieldCheck />} title="We Review" desc="Strict manual approval within 7–8 hours to prevent future errors." colorTheme="purple" />
+              <StepCard index={2} number="03" icon={<ShieldCheck />} title="We Review" desc="Strict manual approval within 7–8 hours to prevent future errors." colorTheme="purple" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <StepCard index={3} number="04" icon={<Globe2 />} title="Goes Live" desc="Your release pushes live on 250+ stores in just 2–3 days." colorTheme="pink" />
+              <StepCard index={3} number="04" icon={<Globe2 />} title="Goes Live" desc="Your release pushes live on 250+ stores in just 2–3 days." colorTheme="pink" isMobile={isMobile} />
             </motion.div>
           </motion.div>
         </div>
@@ -290,22 +355,22 @@ export default function LandingPage() {
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
             <motion.div variants={itemVariants} className="w-full">
-              <FeatureCard icon={<Clock />} title="Fast Delivery" desc="Your song goes live within 2–3 days on major platforms." colorTheme="green" />
+              <FeatureCard icon={<Clock />} title="Fast Delivery" desc="Your song goes live within 2–3 days on major platforms." colorTheme="green" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <FeatureCard icon={<ShieldCheck />} title="Manual Approval" desc="No auto rejection, every release is checked personally." colorTheme="blue" />
+              <FeatureCard icon={<ShieldCheck />} title="Manual Approval" desc="No auto rejection, every release is checked personally." colorTheme="blue" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <FeatureCard icon={<MessageCircle />} title="Direct WhatsApp Support" desc="No emails, instant communication with real humans." colorTheme="purple" />
+              <FeatureCard icon={<MessageCircle />} title="Direct WhatsApp Support" desc="No emails, instant communication with real humans." colorTheme="purple" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <FeatureCard icon={<PiggyBank />} title="Budget Friendly" desc="One of the most affordable premium distribution services." colorTheme="green" />
+              <FeatureCard icon={<PiggyBank />} title="Budget Friendly" desc="One of the most affordable premium distribution services." colorTheme="green" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <FeatureCard icon={<PenTool />} title="Metadata Correction Include" desc="We help fix cover art and metadata errors before release." colorTheme="blue" />
+              <FeatureCard icon={<PenTool />} title="Metadata Correction Include" desc="We help fix cover art and metadata errors before release." colorTheme="blue" isMobile={isMobile} />
             </motion.div>
             <motion.div variants={itemVariants} className="w-full">
-              <FeatureCard icon={<Globe2 />} title="Worldwide Distribution" desc="Reach global audiences on 250+ streaming platforms." colorTheme="purple" />
+              <FeatureCard icon={<Globe2 />} title="Worldwide Distribution" desc="Reach global audiences on 250+ streaming platforms." colorTheme="purple" isMobile={isMobile} />
             </motion.div>
           </motion.div>
         </div>
@@ -331,7 +396,7 @@ export default function LandingPage() {
           >
             <motion.div variants={itemVariants} className="w-full h-full">
               <PricingCard 
-                name="Basic" price="75" period="/ SONG" tag="95% OFF" highlight colorTheme="blue"
+                name="Basic" price="75" period="/ SONG" tag="95% OFF" highlight colorTheme="blue" isMobile={isMobile}
                 groups={[
                   {
                     name: "Distribution Features",
@@ -362,7 +427,7 @@ export default function LandingPage() {
             
             <motion.div variants={itemVariants} className="w-full h-full">
               <PricingCard 
-                name="Monthly" price="199" period="/ MONTH" tag="90% OFF" badge="Most Popular" highlight colorTheme="purple"
+                name="Monthly" price="199" period="/ MONTH" tag="90% OFF" badge="Most Popular" highlight colorTheme="purple" isMobile={isMobile}
                 groups={[
                   {
                     name: "Distribution Features",
@@ -396,7 +461,7 @@ export default function LandingPage() {
 
             <motion.div variants={itemVariants} className="w-full h-full">
               <PricingCard 
-                name="Yearly" price="999" period="/ YEAR" tag="98% OFF" badge="Best Value" highlight colorTheme="green"
+                name="Yearly" price="999" period="/ YEAR" tag="98% OFF" badge="Best Value" highlight colorTheme="green" isMobile={isMobile}
                 groups={[
                   {
                     name: "Distribution Features",
@@ -556,6 +621,14 @@ export default function LandingPage() {
             <FaqItem q="How do royalties work?" a="Artists keep 80% of their royalties on all tiers. Your earnings are reported monthly directly within your artist dashboard." />
             <FaqItem q="How to withdraw earnings?" a="You can withdraw your earnings directly to your bank account via the artist dashboard once the threshold is met." />
           </div>
+          <div className="mt-12 text-center">
+            <Link 
+              to="/faq" 
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#111] border border-[#222] rounded-full text-gray-400 hover:text-[#B6FF00] hover:border-[#B6FF00]/50 transition-all font-display uppercase tracking-widest text-xs font-bold"
+            >
+              View All FAQs <ChevronRight size={14} />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -565,19 +638,19 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#B6FF00]/10 via-[#8B5CF6]/10 to-[#0A0A0A] pointer-events-none"></div>
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-1/2 bg-gradient-to-t from-[#B6FF00]/20 to-transparent blur-[100px]"></div>
         
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <h2 className="text-5xl md:text-8xl font-display uppercase tracking-tighter mb-8 text-white drop-shadow-2xl">
+        <div className="relative z-10 max-w-4xl mx-auto px-6">
+          <h2 className="text-4xl sm:text-5xl md:text-8xl font-display uppercase tracking-tighter mb-8 text-white drop-shadow-2xl leading-none">
             You got music?<br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#B6FF00] to-[#8B5CF6]">We got you.</span>
           </h2>
-          <p className="font-sans text-xl md:text-2xl mb-12 max-w-2xl mx-auto font-medium text-gray-300">Direct WhatsApp Support – No Emails, No Delays.</p>
+          <p className="font-sans text-lg md:text-2xl mb-12 max-w-2xl mx-auto font-medium text-gray-300">Direct WhatsApp Support – No Emails, No Delays.</p>
           
           <motion.a 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi, I have a question.")}`} 
             target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 bg-[#B6FF00] text-black px-12 py-6 rounded-full font-display uppercase tracking-widest font-black text-lg hover:bg-white shadow-[0_0_40px_rgba(182,255,0,0.4)] hover:shadow-[0_0_60px_rgba(255,255,255,0.6)] transition-shadow"
+            className="inline-flex items-center justify-center gap-3 bg-[#B6FF00] text-black px-6 md:px-12 py-5 md:py-6 rounded-full font-display uppercase tracking-widest font-black text-sm md:text-lg hover:bg-white shadow-[0_0_40px_rgba(182,255,0,0.4)] hover:shadow-[0_0_60px_rgba(255,255,255,0.6)] transition-shadow w-full md:w-auto"
           >
             <MessageCircleIcon /> Message {WHATSAPP_NUMBER}
           </motion.a>
@@ -594,16 +667,16 @@ export default function LandingPage() {
           <div>
             <h4 className="font-display uppercase tracking-widest text-[#f5f5f5] mb-4">Quick Links</h4>
             <div className="flex flex-col gap-2">
-              <a href="#" className="hover:text-white transition-colors">About</a>
-              <a href="#" className="hover:text-white transition-colors">Contact</a>
-              <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+              <Link to="/about" className="hover:text-white transition-colors">About</Link>
+              <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
+              <Link to="/faq" className="hover:text-white transition-colors">FAQ</Link>
             </div>
           </div>
           <div>
             <h4 className="font-display uppercase tracking-widest text-[#f5f5f5] mb-4">Legal</h4>
             <div className="flex flex-col gap-2">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms & Conditions</a>
+              <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link>
             </div>
           </div>
         </div>
@@ -618,39 +691,53 @@ export default function LandingPage() {
 
 // --- Sub Components ---
 
-function StepCard({ index = 0, number, title, desc, icon, colorTheme = "green" }: any) {
-  const themes: Record<string, string> = {
-    green: "text-[#B6FF00] group-hover:border-[#B6FF00]/50 group-hover:shadow-[0_0_40px_rgba(182,255,0,0.2)] bg-[#B6FF00]/5",
-    blue: "text-[#3B82F6] group-hover:border-[#3B82F6]/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] bg-[#3B82F6]/5",
-    purple: "text-[#8B5CF6] group-hover:border-[#8B5CF6]/50 group-hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] bg-[#8B5CF6]/5",
-    pink: "text-[#EC4899] group-hover:border-[#EC4899]/50 group-hover:shadow-[0_0_40px_rgba(236,72,153,0.2)] bg-[#EC4899]/5"
+function StepCard({ index = 0, number, title, desc, icon, colorTheme = "green", isMobile }: any) {
+  const themes: Record<string, { icon: string, glow: string, bg: string, ring: string }> = {
+    green: {
+      icon: "text-[#B6FF00]",
+      glow: "shadow-[0_0_30px_rgba(182,255,0,0.5)]",
+      bg: "bg-[#B6FF00]/10",
+      ring: "group-hover:border-[#B6FF00]/50"
+    },
+    blue: {
+      icon: "text-[#3B82F6]",
+      glow: "shadow-[0_0_30px_rgba(59,130,246,0.5)]",
+      bg: "bg-[#3B82F6]/10",
+      ring: "group-hover:border-[#3B82F6]/50"
+    },
+    purple: {
+      icon: "text-[#8B5CF6]",
+      glow: "shadow-[0_0_30px_rgba(139,92,246,0.5)]",
+      bg: "bg-[#8B5CF6]/10",
+      ring: "group-hover:border-[#8B5CF6]/50"
+    },
+    pink: { // Mapping pink to electric purple as requested colors were green, blue, purple
+      icon: "text-[#8B5CF6]",
+      glow: "shadow-[0_0_30px_rgba(139,92,246,0.5)]",
+      bg: "bg-[#8B5CF6]/10",
+      ring: "group-hover:border-[#8B5CF6]/50"
+    }
   };
 
-  const glowThemes: Record<string, string> = {
-    green: "bg-[#B6FF00]/30",
-    blue: "bg-[#3B82F6]/30",
-    purple: "bg-[#8B5CF6]/30",
-    pink: "bg-[#EC4899]/30"
-  };
+  const t = themes[colorTheme] || themes.green;
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: isMobile ? 20 : 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.1, ease: "easeOut" }}
+      transition={{ duration: 0.4, delay: isMobile ? 0 : index * 0.1, ease: "easeOut" }}
       viewport={{ once: true, margin: "-50px" }}
-      className={`relative flex flex-col items-center text-center group w-full max-w-[340px] mx-auto p-8 rounded-3xl bg-[#111]/40 backdrop-blur-xl border border-[#222] transition-all duration-500 hover:-translate-y-2 hover:bg-[#151515] ${themes[colorTheme].split(" ").filter((c: string) => c.startsWith("group-hover:")).join(" ")}`}
+      className={`relative flex flex-col items-center text-center group w-full max-w-[340px] mx-auto p-8 rounded-3xl bg-[#111]/30 ${!isMobile ? 'backdrop-blur-xl' : ''} border border-[#222] transition-all duration-500 hover:-translate-y-2 hover:bg-[#1A1A1A]/40 ${t.ring} will-change-transform`}
     >
       <div className={`absolute top-4 right-6 font-display font-black text-6xl text-white/[0.03] select-none pointer-events-none group-hover:text-white/[0.06] transition-colors duration-500 z-0`}>{number}</div>
       
       <motion.div 
-        animate={{ y: [0, -5, 0] }}
-        transition={{ repeat: Infinity, duration: 3 + index * 0.5, ease: "easeInOut" }}
-        className={`relative w-20 h-20 rounded-full border border-[#333] flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(0,0,0,0.8)] z-10 transition-all duration-300 ${themes[colorTheme].split(" ")[0]} ${themes[colorTheme].split(" ").find(c => c.startsWith("bg-"))}`}
+        animate={isMobile ? {} : { y: [0, -5, 0] }}
+        transition={{ repeat: Infinity, duration: 4 + index * 0.5, ease: "easeInOut" }}
+        className={`relative w-20 h-20 rounded-full flex items-center justify-center mb-6 z-10 transition-all duration-500 ${t.bg} ${t.icon} ${!isMobile ? t.glow : ''} border border-white/5 will-change-transform`}
       >
-        <div className={`absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${glowThemes[colorTheme]}`}></div>
-        {/* Clone icon to handle exact glowing color matches */}
-        {React.cloneElement(icon, { className: "relative z-10" })}
+        {!isMobile && <div className={`absolute inset-0 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${t.bg}`}></div>}
+        {React.cloneElement(icon, { size: 28, strokeWidth: 2.5, className: "relative z-10" })}
       </motion.div>
       
       <h3 className="text-xl font-display uppercase tracking-wide text-white mb-3 relative z-10">{title}</h3>
@@ -659,29 +746,27 @@ function StepCard({ index = 0, number, title, desc, icon, colorTheme = "green" }
   );
 }
 
-function FeatureCard({ icon, title, desc, colorTheme = "green" }: any) {
-  const themes: Record<string, { ring: string, icon: string, bg: string, shadow: string, topBorder: string }> = {
-    green: { ring: "hover:border-[#B6FF00]/50 hover:bg-[#B6FF00]/5", icon: "text-[#B6FF00]", bg: "group-hover:border-[#B6FF00]/50", shadow: "group-hover:shadow-[0_0_20px_rgba(182,255,0,0.1)]", topBorder: "from-[#B6FF00]/30" },
-    purple: { ring: "hover:border-[#8B5CF6]/50 hover:bg-[#8B5CF6]/5", icon: "text-[#8B5CF6]", bg: "group-hover:border-[#8B5CF6]/50", shadow: "group-hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]", topBorder: "from-[#8B5CF6]/30" },
-    blue: { ring: "hover:border-[#3B82F6]/50 hover:bg-[#3B82F6]/5", icon: "text-[#3B82F6]", bg: "group-hover:border-[#3B82F6]/50", shadow: "group-hover:shadow-[0_0_20px_rgba(59,130,246,0.1)]", topBorder: "from-[#3B82F6]/30" }
+function FeatureCard({ icon, title, desc, colorTheme = "green", isMobile }: any) {
+  const themes: Record<string, { icon: string, border: string, glow: string, bg: string }> = {
+    green: { icon: "text-[#B6FF00]", border: "group-hover:border-[#B6FF00]/50", glow: "shadow-[0_0_30px_rgba(182,255,0,0.3)]", bg: "bg-[#B6FF00]/5" },
+    purple: { icon: "text-[#8B5CF6]", border: "group-hover:border-[#8B5CF6]/50", glow: "shadow-[0_0_30px_rgba(139,92,246,0.3)]", bg: "bg-[#8B5CF6]/5" },
+    blue: { icon: "text-[#3B82F6]", border: "group-hover:border-[#3B82F6]/50", glow: "shadow-[0_0_30px_rgba(59,130,246,0.3)]", bg: "bg-[#3B82F6]/5" }
   };
   const t = themes[colorTheme] || themes.green;
 
   return (
-    <div className={`relative p-8 border border-[#222] bg-[#111]/40 backdrop-blur-xl transition-all duration-500 overflow-hidden group rounded-2xl shadow-xl hover:-translate-y-2 ${t.ring}`}>
-      {/* Top Gradient Accent */}
-      <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${t.topBorder} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
-      
-      {/* Subtle background illustration element */}
-      <div className={`absolute -right-6 -top-6 text-[#1a1a1a] transition-colors transform group-hover:scale-110 group-hover:rotate-12 duration-500 z-0 pointer-events-none group-hover:${t.icon} group-hover:opacity-10`}>
-        {React.cloneElement(icon, { size: 140, strokeWidth: 0.5 })}
-      </div>
+    <div className={`relative p-8 border border-[#222]/60 bg-[#111]/20 ${!isMobile ? 'backdrop-blur-2xl' : ''} transition-all duration-500 overflow-hidden group rounded-3xl shadow-2xl hover:-translate-y-2 ${t.border} hover:bg-[#1A1A1A]/40 will-change-transform`}>
+      {/* Glow Highlight */}
+      {!isMobile && <div className={`absolute -top-10 -right-10 w-24 h-24 blur-[60px] rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-current ${t.icon}`}></div>}
       
       <div className="relative z-10">
-        <div className={`text-gray-400 mb-8 w-14 h-14 bg-[#0A0A0A] rounded-xl flex items-center justify-center border border-[#222] transition-colors shadow-inner group-hover:${t.icon} ${t.bg} ${t.shadow}`}>
-          {React.cloneElement(icon, { size: 24 })}
+        <div className={`mb-8 w-16 h-16 rounded-2xl flex items-center justify-center bg-[#050505]/80 border border-[#222] transition-all duration-500 group-hover:scale-110 ${t.icon} shadow-inner`}>
+          {!isMobile && <div className={`absolute inset-0 rounded-2xl blur-lg opacity-0 group-hover:opacity-40 transition-opacity duration-500 ${t.bg}`}></div>}
+          {React.cloneElement(icon, { size: 28, strokeWidth: 1.5, className: "relative z-10" })}
         </div>
-        <h3 className="text-lg font-display uppercase tracking-tight text-white mb-3">{title}</h3>
+        <h3 className="text-lg font-display uppercase tracking-tight text-white mb-3 flex items-center gap-2">
+          {title}
+        </h3>
         <p className="text-sm text-gray-400 leading-relaxed font-sans">{desc}</p>
       </div>
     </div>
@@ -702,9 +787,10 @@ interface PricingCardProps {
   highlight?: boolean;
   colorTheme?: "green" | "purple" | "blue";
   groups: FeatureGroup[];
+  isMobile?: boolean;
 }
 
-function PricingCard({ name, price, period, tag, badge, highlight, colorTheme = "green", groups }: PricingCardProps) {
+function PricingCard({ name, price, period, tag, badge, highlight, colorTheme = "green", groups, isMobile }: PricingCardProps) {
   const themes = {
     green: {
       border: "border-[#B6FF00]/30 hover:border-[#B6FF00]/60 ring-[#B6FF00]/20",
@@ -745,15 +831,19 @@ function PricingCard({ name, price, period, tag, badge, highlight, colorTheme = 
 
   return (
     <motion.div 
-      whileHover={{ y: -10 }}
-      className={`relative p-8 flex flex-col rounded-3xl transition-all duration-500 w-full overflow-hidden ${highlight ? `bg-[#0A0A0A]/80 backdrop-blur-lg border ${t.border} ${t.shadow} ring-1 overflow-visible` : `bg-[#111]/50 backdrop-blur-md border border-[#222] hover:border-[#444] hover:shadow-2xl`}`}
+      whileHover={isMobile ? {} : { y: -10 }}
+      className={`relative p-8 flex flex-col rounded-3xl transition-all duration-500 w-full overflow-hidden ${highlight ? `bg-[#0A0A0A]/80 ${!isMobile ? 'backdrop-blur-lg' : ''} border ${t.border} ${!isMobile ? t.shadow : ''} ring-1 overflow-visible` : `bg-[#111]/50 ${!isMobile ? 'backdrop-blur-md' : ''} border border-[#222] hover:border-[#444] hover:shadow-2xl`} will-change-transform`}
     >
       {/* Top soft gradient edge */}
       {highlight && <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${t.line} opacity-80`}></div>}
       
       {/* Internal Background Glow */}
-      <div className={`absolute -top-32 -right-32 w-64 h-64 ${t.glowBg} blur-[120px] ${highlight ? 'opacity-[0.2]' : 'opacity-[0.05]'} pointer-events-none rounded-full`}></div>
-      <div className={`absolute -bottom-32 -left-32 w-64 h-64 ${t.glowBg} blur-[120px] opacity-[0.05] pointer-events-none rounded-full`}></div>
+      {!isMobile && (
+        <>
+          <div className={`absolute -top-32 -right-32 w-64 h-64 ${t.glowBg} blur-[120px] ${highlight ? 'opacity-[0.2]' : 'opacity-[0.05]'} pointer-events-none rounded-full`}></div>
+          <div className={`absolute -bottom-32 -left-32 w-64 h-64 ${t.glowBg} blur-[120px] opacity-[0.05] pointer-events-none rounded-full`}></div>
+        </>
+      )}
       
       {badge && (
         <div className={`absolute -top-4 right-6 font-display uppercase tracking-widest text-[10px] font-bold px-4 py-2 rounded-full shadow-lg z-20 ${highlight ? t.badgeBg : 'bg-[#222] text-white border border-[#333]'}`}>

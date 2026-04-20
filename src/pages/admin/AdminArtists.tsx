@@ -29,6 +29,8 @@ export default function AdminArtists() {
         .map(d => ({ uid: d.id, ...(d.data() as any) }))
         .filter((user: any) => user.role !== 'admin');
       setArtists(list);
+    }, (error) => {
+      console.error("AdminArtists: snapshot error", error);
     });
     return unsub;
   }, []);

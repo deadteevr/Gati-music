@@ -9,6 +9,11 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -38,17 +43,22 @@ export default function App() {
         }
 
         // Standard user flow
-        roleUnsub = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
-          if (userDoc.exists()) {
-            setRole(userDoc.data().role);
-          } else {
-            setRole('artist'); // Default
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error("Error fetching user role", error);
-          setLoading(false);
-        });
+        // If not super-admin, listen normally
+        if (currentUser.email !== 'deadteevr@gmail.com') {
+          roleUnsub = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+            if (userDoc.exists()) {
+              setRole(userDoc.data().role);
+            } else {
+              setRole('artist'); // Default
+            }
+            setLoading(false);
+          }, (error) => {
+            console.error("Error fetching user role", error);
+            // If we can't even read our own doc, we default to artist and stop loading
+            setRole('artist');
+            setLoading(false);
+          });
+        }
       } else {
         if (roleUnsub) roleUnsub();
         setRole(null);
@@ -74,6 +84,11 @@ export default function App() {
           <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
           <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} /> : <Navigate to="/login" replace />} />
           <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} /> : <Navigate to="/login" replace />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/faq" element={<FAQPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

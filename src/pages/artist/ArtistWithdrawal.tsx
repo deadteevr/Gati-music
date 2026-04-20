@@ -18,7 +18,7 @@ export default function ArtistWithdrawal({ user }: { user: any }) {
       setWithdrawals(data);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'withdrawals');
+      handleFirestoreError(error, OperationType.GET, 'withdrawals', false);
       setLoading(false);
     });
 

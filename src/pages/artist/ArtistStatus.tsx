@@ -17,7 +17,7 @@ export default function ArtistStatus({ user }: { user: any }) {
       setReleases(data);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'submissions');
+      handleFirestoreError(error, OperationType.GET, 'submissions', false);
       setLoading(false);
     });
 
@@ -69,6 +69,8 @@ export default function ArtistStatus({ user }: { user: any }) {
                         alt="Cover" 
                         className="w-12 h-12 object-cover rounded shadow-md border border-[#333]" 
                         referrerPolicy="no-referrer"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <div className="w-12 h-12 bg-[#222] rounded flex items-center justify-center border border-[#333]">

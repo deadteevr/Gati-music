@@ -15,6 +15,8 @@ export default function AdminNotifications() {
       // Filter out admin users if any, or just ensure they have an email
       const fetchedUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
       setUsers(fetchedUsers);
+    }, (error) => {
+      console.error("AdminNotifications: users snapshot error", error);
     });
     return unsub;
   }, []);

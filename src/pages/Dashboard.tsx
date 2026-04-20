@@ -1,14 +1,16 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User } from 'lucide-react';
 import { logout } from '../lib/auth';
-import { useState } from 'react';
-import ArtistHome from './artist/ArtistHome';
-import ArtistUpload from './artist/ArtistUpload';
-import ArtistStatus from './artist/ArtistStatus';
-import ArtistRoyalties from './artist/ArtistRoyalties';
-import ArtistWithdrawal from './artist/ArtistWithdrawal';
-import ArtistNotifications from './artist/ArtistNotifications';
-import ArtistProfile from './artist/ArtistProfile';
+import { useState, lazy, Suspense } from 'react';
+import PremiumLoader from '../components/PremiumLoader';
+
+const ArtistHome = lazy(() => import('./artist/ArtistHome'));
+const ArtistUpload = lazy(() => import('./artist/ArtistUpload'));
+const ArtistStatus = lazy(() => import('./artist/ArtistStatus'));
+const ArtistRoyalties = lazy(() => import('./artist/ArtistRoyalties'));
+const ArtistWithdrawal = lazy(() => import('./artist/ArtistWithdrawal'));
+const ArtistNotifications = lazy(() => import('./artist/ArtistNotifications'));
+const ArtistProfile = lazy(() => import('./artist/ArtistProfile'));
 
 export default function Dashboard({ user }: { user: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -128,15 +130,17 @@ export default function Dashboard({ user }: { user: any }) {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10 pb-24">
-          <Routes>
-            <Route path="/" element={<ArtistHome user={user} />} />
-            <Route path="/upload" element={<ArtistUpload user={user} />} />
-            <Route path="/status" element={<ArtistStatus user={user} />} />
-            <Route path="/royalties" element={<ArtistRoyalties user={user} />} />
-            <Route path="/withdrawals" element={<ArtistWithdrawal user={user} />} />
-            <Route path="/notifications" element={<ArtistNotifications user={user} />} />
-            <Route path="/profile" element={<ArtistProfile user={user} />} />
-          </Routes>
+          <Suspense fallback={<PremiumLoader />}>
+            <Routes>
+              <Route path="/" element={<ArtistHome user={user} />} />
+              <Route path="/upload" element={<ArtistUpload user={user} />} />
+              <Route path="/status" element={<ArtistStatus user={user} />} />
+              <Route path="/royalties" element={<ArtistRoyalties user={user} />} />
+              <Route path="/withdrawals" element={<ArtistWithdrawal user={user} />} />
+              <Route path="/notifications" element={<ArtistNotifications user={user} />} />
+              <Route path="/profile" element={<ArtistProfile user={user} />} />
+            </Routes>
+          </Suspense>
         </div>
 
         {/* Floating WhatsApp Button */}

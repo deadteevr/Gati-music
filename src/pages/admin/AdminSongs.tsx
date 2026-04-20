@@ -18,6 +18,8 @@ export default function AdminSongs() {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setSongs(list);
+    }, (error) => {
+      console.error("AdminSongs: snapshot error", error);
     });
     return unsub;
   }, []);

@@ -20,6 +20,8 @@ export default function AdminRoyalties() {
     const qUsers = query(collection(db, 'users'));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
       setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+    }, (error) => {
+      console.error("AdminRoyalties: users snapshot error", error);
     });
 
     // Fetch reports for table
@@ -28,6 +30,8 @@ export default function AdminRoyalties() {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setReports(list);
+    }, (error) => {
+      console.error("AdminRoyalties: reports snapshot error", error);
     });
 
     return () => {

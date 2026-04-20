@@ -16,7 +16,7 @@ export default function ArtistRoyalties({ user }: { user: any }) {
       setRoyalties(data);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'royalties');
+      handleFirestoreError(error, OperationType.GET, 'royalties', false);
       setLoading(false);
     });
 

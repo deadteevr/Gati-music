@@ -1,19 +1,20 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X, CheckSquare } from 'lucide-react';
 import { logout } from '../lib/auth';
+import PremiumLoader from '../components/PremiumLoader';
 
-import AdminHome from './admin/AdminHome';
-import AdminArtists from './admin/AdminArtists';
-import AdminArtistProfile from './admin/AdminArtistProfile';
-import AdminSongs from './admin/AdminSongs';
-import AdminSongDetail from './admin/AdminSongDetail';
-import AdminBulkStreams from './admin/AdminBulkStreams';
-import AdminNotifications from './admin/AdminNotifications';
-import AdminRoyalties from './admin/AdminRoyalties';
-import AdminWithdrawals from './admin/AdminWithdrawals';
-import AdminSettings from './admin/AdminSettings';
-import AdminTasks from './admin/AdminTasks';
+const AdminHome = lazy(() => import('./admin/AdminHome'));
+const AdminArtists = lazy(() => import('./admin/AdminArtists'));
+const AdminArtistProfile = lazy(() => import('./admin/AdminArtistProfile'));
+const AdminSongs = lazy(() => import('./admin/AdminSongs'));
+const AdminSongDetail = lazy(() => import('./admin/AdminSongDetail'));
+const AdminBulkStreams = lazy(() => import('./admin/AdminBulkStreams'));
+const AdminNotifications = lazy(() => import('./admin/AdminNotifications'));
+const AdminRoyalties = lazy(() => import('./admin/AdminRoyalties'));
+const AdminWithdrawals = lazy(() => import('./admin/AdminWithdrawals'));
+const AdminSettings = lazy(() => import('./admin/AdminSettings'));
+const AdminTasks = lazy(() => import('./admin/AdminTasks'));
 
 export default function AdminPanel({ user }: { user: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -96,19 +97,21 @@ export default function AdminPanel({ user }: { user: any }) {
       {/* Main Content */}
       <main className="flex-1 flex flex-col max-h-screen overflow-hidden bg-[#0a0a0a]">
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <Routes>
-            <Route path="/" element={<AdminHome />} />
-            <Route path="/artists" element={<AdminArtists />} />
-            <Route path="/artists/:uid" element={<AdminArtistProfile />} />
-            <Route path="/songs" element={<AdminSongs />} />
-            <Route path="/songs/:id" element={<AdminSongDetail />} />
-            <Route path="/tasks" element={<AdminTasks />} />
-            <Route path="/streams" element={<AdminBulkStreams />} />
-            <Route path="/notifications" element={<AdminNotifications />} />
-            <Route path="/royalties" element={<AdminRoyalties />} />
-            <Route path="/withdrawals" element={<AdminWithdrawals />} />
-            <Route path="/settings" element={<AdminSettings />} />
-          </Routes>
+          <Suspense fallback={<PremiumLoader />}>
+            <Routes>
+              <Route path="/" element={<AdminHome />} />
+              <Route path="/artists" element={<AdminArtists />} />
+              <Route path="/artists/:uid" element={<AdminArtistProfile />} />
+              <Route path="/songs" element={<AdminSongs />} />
+              <Route path="/songs/:id" element={<AdminSongDetail />} />
+              <Route path="/tasks" element={<AdminTasks />} />
+              <Route path="/streams" element={<AdminBulkStreams />} />
+              <Route path="/notifications" element={<AdminNotifications />} />
+              <Route path="/royalties" element={<AdminRoyalties />} />
+              <Route path="/withdrawals" element={<AdminWithdrawals />} />
+              <Route path="/settings" element={<AdminSettings />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
     </div>

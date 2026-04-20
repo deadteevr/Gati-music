@@ -38,6 +38,8 @@ export default function ArtistUpload({ user }: { user: any }) {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [audioProgress, setAudioProgress] = useState(-1);
   const [coverProgress, setCoverProgress] = useState(-1);
+  const [audioStatus, setAudioStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [coverStatus, setCoverStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
 
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -120,14 +122,20 @@ export default function ArtistUpload({ user }: { user: any }) {
 
       if (audioInputType === 'file' && audioFile) {
         setAudioProgress(0);
+        setAudioStatus('uploading');
         const audioRef = ref(storage, `uploads/${user.uid}/${Date.now()}_audio_${audioFile.name}`);
         const uploadTask = uploadBytesResumable(audioRef, audioFile);
         uploadPromises.push(new Promise((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => setAudioProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => reject(error),
+            (error) => {
+              setAudioStatus('error');
+              reject(error);
+            },
             async () => {
               finalAudioUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              setAudioStatus('success');
+              setAudioProgress(100);
               resolve();
             }
           );
@@ -136,14 +144,20 @@ export default function ArtistUpload({ user }: { user: any }) {
 
       if (coverInputType === 'file' && coverFile) {
         setCoverProgress(0);
+        setCoverStatus('uploading');
         const coverRef = ref(storage, `uploads/${user.uid}/${Date.now()}_cover_${coverFile.name}`);
         const uploadTask = uploadBytesResumable(coverRef, coverFile);
         uploadPromises.push(new Promise((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => setCoverProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => reject(error),
+            (error) => {
+              setCoverStatus('error');
+              reject(error);
+            },
             async () => {
               finalCoverUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              setCoverStatus('success');
+              setCoverProgress(100);
               resolve();
             }
           );
@@ -354,147 +368,205 @@ export default function ArtistUpload({ user }: { user: any }) {
           </div>
           
           {/* Audio Upload */}
-          <div className="mb-8 border border-[#333] p-4 bg-[#0a0a0a]">
-            <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-2">
-              <label className="text-sm font-display uppercase tracking-widest text-white">Audio File *</label>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setAudioInputType('file')} className={`text-xs font-display px-3 py-1 uppercase font-bold ${audioInputType === 'file' ? 'bg-[#ccff00] text-black' : 'bg-[#333] text-gray-400'}`}>Upload</button>
-                <button type="button" onClick={() => setAudioInputType('link')} className={`text-xs font-display px-3 py-1 uppercase font-bold ${audioInputType === 'link' ? 'bg-[#ccff00] text-black' : 'bg-[#333] text-gray-400'}`}>Link</button>
+          <div className="mb-8 border border-[#333] bg-[#0a0a0a] overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-[#333] bg-[#111]">
+              <label className="text-xs font-display uppercase tracking-widest text-[#ccff00] font-bold">Audio File *</label>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setAudioInputType('file')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${audioInputType === 'file' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Upload</button>
+                <button type="button" onClick={() => setAudioInputType('link')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${audioInputType === 'link' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Link</button>
               </div>
             </div>
             
-            {audioInputType === 'file' ? (
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <input 
-                    type="file" 
-                    accept=".mp3,.m4a,.wav,audio/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      if (file) {
-                        try {
-                          validateAudioFile(file);
-                          setAudioFile(file);
-                          setAudioError("");
-                          setError("");
-                        } catch (err: any) {
-                          setAudioError(err.message);
+            <div className="p-6">
+              {audioInputType === 'file' ? (
+                <div className="space-y-4">
+                  <div className="relative group">
+                    <input 
+                      type="file" 
+                      id="audio-file"
+                      accept=".mp3,.m4a,.wav,audio/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          try {
+                            validateAudioFile(file);
+                            setAudioFile(file);
+                            setAudioError("");
+                            setError("");
+                          } catch (err: any) {
+                            setAudioError(err.message);
+                            setAudioFile(null);
+                            e.target.value = ''; // Reset input
+                          }
+                        } else {
                           setAudioFile(null);
-                          e.target.value = ''; // Reset input
+                          setAudioError("");
                         }
-                      } else {
-                        setAudioFile(null);
-                        setAudioError("");
-                      }
-                    }}
-                    className="flex-grow text-sm font-sans text-gray-400 file:mr-4 file:py-2 file:px-4 file:bg-[#333] file:border-none file:text-white file:cursor-pointer"
-                  />
-                  {audioFile && !audioError && (
-                    <span className="text-[#ccff00] flex items-center gap-1 text-sm font-display uppercase tracking-widest font-bold">
-                      <CheckCircle2 size={16} /> Selected
-                    </span>
-                  )}
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className={`
+                      border-2 border-dashed p-6 text-center transition-all duration-300
+                      ${audioFile && !audioError ? 'border-[#ccff00] bg-[#ccff00]/5' : 'border-[#333] bg-[#0f0f0f] group-hover:border-gray-500'}
+                    `}>
+                      {audioFile && !audioError ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <CheckCircle2 className="text-[#ccff00]" size={32} />
+                          <div className="text-white font-sans text-sm font-bold truncate max-w-full px-4">{audioFile.name}</div>
+                          <span className="text-[#ccff00] text-[10px] uppercase font-display tracking-widest font-black">Ready to upload</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <Plus className="text-gray-500 group-hover:text-white transition-colors" size={32} />
+                          <span className="text-gray-400 text-xs font-display uppercase tracking-widest">Click or Drag Audio File</span>
+                          <span className="text-[10px] text-gray-600 font-sans uppercase">MP3, M4A, WAV (Max 100MB)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {audioError && <p className="text-xs text-red-500 font-display uppercase tracking-widest text-center">{audioError}</p>}
                 </div>
-                {audioError && <p className="text-xs text-red-500 mt-2 font-display uppercase tracking-widest">{audioError}</p>}
-                <p className="text-xs text-gray-500 mt-2 font-sans">Supported formats: MP3, M4A, WAV. Max limit 100MB.</p>
-              </div>
-            ) : (
-              <div>
-                <input 
-                  type="url" 
-                  name="audioUrl"
-                  value={formData.audioUrl} 
-                  onChange={handleChange}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full bg-transparent border-b border-[#333] py-2 text-white font-sans focus:outline-none focus:border-[#ccff00]"
-                />
-                <p className="text-xs text-gray-500 mt-2 font-sans">Provide a publicly accessible URL (Google Drive, Dropbox, etc).</p>
-              </div>
-            )}
+              ) : (
+                <div className="space-y-2">
+                  <input 
+                    type="url" 
+                    name="audioUrl"
+                    value={formData.audioUrl} 
+                    onChange={handleChange}
+                    placeholder="Paste link here (Google Drive / Dropbox)"
+                    className="w-full bg-[#151515] border border-[#333] p-3 text-white font-sans text-sm focus:outline-none focus:border-[#ccff00] transition-colors"
+                  />
+                  <p className="text-[10px] text-gray-500 font-sans uppercase">Ensure the link is public</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Cover Upload */}
-          <div className="border border-[#333] p-4 bg-[#0a0a0a]">
-            <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-2">
-              <label className="text-sm font-display uppercase tracking-widest text-white">Cover Art *</label>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setCoverInputType('file')} className={`text-xs font-display px-3 py-1 uppercase font-bold ${coverInputType === 'file' ? 'bg-[#ccff00] text-black' : 'bg-[#333] text-gray-400'}`}>Upload</button>
-                <button type="button" onClick={() => setCoverInputType('link')} className={`text-xs font-display px-3 py-1 uppercase font-bold ${coverInputType === 'link' ? 'bg-[#ccff00] text-black' : 'bg-[#333] text-gray-400'}`}>Link</button>
+          <div className="border border-[#333] bg-[#0a0a0a] overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-[#333] bg-[#111]">
+              <label className="text-xs font-display uppercase tracking-widest text-[#ccff00] font-bold">Cover Art *</label>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setCoverInputType('file')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${coverInputType === 'file' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Upload</button>
+                <button type="button" onClick={() => setCoverInputType('link')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${coverInputType === 'link' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Link</button>
               </div>
             </div>
             
-            {coverInputType === 'file' ? (
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <input 
-                    type="file" 
-                    accept=".png,.jpg,.jpeg,.pdf,image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      if (file) {
-                        try {
-                          validateCoverFile(file);
-                          setCoverFile(file);
-                          setCoverError("");
-                          setError("");
-                        } catch (err: any) {
-                          setCoverError(err.message);
+            <div className="p-6">
+              {coverInputType === 'file' ? (
+                <div className="space-y-4">
+                  <div className="relative group">
+                    <input 
+                      type="file" 
+                      id="cover-file"
+                      accept=".png,.jpg,.jpeg,.pdf,image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          try {
+                            validateCoverFile(file);
+                            setCoverFile(file);
+                            setCoverError("");
+                            setError("");
+                          } catch (err: any) {
+                            setCoverError(err.message);
+                            setCoverFile(null);
+                            e.target.value = ''; // Reset input
+                          }
+                        } else {
                           setCoverFile(null);
-                          e.target.value = ''; // Reset input
+                          setCoverError("");
                         }
-                      } else {
-                        setCoverFile(null);
-                        setCoverError("");
-                      }
-                    }}
-                    className="flex-grow text-sm font-sans text-gray-400 file:mr-4 file:py-2 file:px-4 file:bg-[#333] file:border-none file:text-white file:cursor-pointer"
-                  />
-                  {coverFile && !coverError && (
-                    <span className="text-[#ccff00] flex items-center gap-1 text-sm font-display uppercase tracking-widest font-bold">
-                      <CheckCircle2 size={16} /> Selected
-                    </span>
-                  )}
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className={`
+                      border-2 border-dashed p-6 text-center transition-all duration-300
+                      ${coverFile && !coverError ? 'border-[#ccff00] bg-[#ccff00]/5' : 'border-[#333] bg-[#0f0f0f] group-hover:border-gray-500'}
+                    `}>
+                      {coverFile && !coverError ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <CheckCircle2 className="text-[#ccff00]" size={32} />
+                          <div className="text-white font-sans text-sm font-bold truncate max-w-full px-4">{coverFile.name}</div>
+                          <span className="text-[#ccff00] text-[10px] uppercase font-display tracking-widest font-black">Artwork Linked</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <Plus className="text-gray-500 group-hover:text-white transition-colors" size={32} />
+                          <span className="text-gray-400 text-xs font-display uppercase tracking-widest">Select Cover Art</span>
+                          <span className="text-[10px] text-gray-600 font-sans uppercase">PNG, JPG (Min 3000x3000px)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {coverError && <p className="text-xs text-red-500 font-display uppercase tracking-widest text-center">{coverError}</p>}
                 </div>
-                {coverError && <p className="text-xs text-red-500 mt-2 font-display uppercase tracking-widest">{coverError}</p>}
-                <p className="text-xs text-gray-500 mt-2 font-sans">Supported formats: PNG, JPG, JPEG, PDF. Minimum size 3000x3000px. Max limit 10MB.</p>
-              </div>
-            ) : (
-              <div>
-                <input 
-                  type="url" 
-                  name="coverUrl"
-                  value={formData.coverUrl} 
-                  onChange={handleChange}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full bg-transparent border-b border-[#333] py-2 text-white font-sans focus:outline-none focus:border-[#ccff00]"
-                />
-                <p className="text-xs text-gray-500 mt-2 font-sans">Provide a publicly accessible URL for your artwork.</p>
-              </div>
-            )}
+              ) : (
+                <div className="space-y-2">
+                  <input 
+                    type="url" 
+                    name="coverUrl"
+                    value={formData.coverUrl} 
+                    onChange={handleChange}
+                    placeholder="Link to hosted artwork"
+                    className="w-full bg-[#151515] border border-[#333] p-3 text-white font-sans text-sm focus:outline-none focus:border-[#ccff00] transition-colors"
+                  />
+                  <p className="text-[10px] text-gray-500 font-sans uppercase">Drive links must be accessible</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Progress Bars */}
+          {/* Progress Overlay / Bars */}
           {(audioProgress >= 0 || coverProgress >= 0) && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-8 pt-6 border-t border-[#333] space-y-6">
               {audioProgress >= 0 && (
-                <div>
-                  <div className="flex justify-between text-xs font-sans text-gray-400 mb-2">
-                    <span className="font-display tracking-widest uppercase text-white font-bold">Uploading Audio...</span>
-                    <span>{Math.round(audioProgress)}%</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-display uppercase tracking-[0.2em] text-gray-500 mb-1">Status</span>
+                      <span className="text-xs font-display uppercase tracking-widest text-white font-bold">
+                        {audioStatus === 'uploading' && "Uploading Audio Core"}
+                        {audioStatus === 'success' && "Audio Core Uploaded"}
+                        {audioStatus === 'error' && "Audio Upload Failed"}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-mono ${audioStatus === 'error' ? 'text-red-500' : 'text-[#ccff00]'}`}>{Math.round(audioProgress)}%</span>
                   </div>
-                  <div className="w-full bg-[#333] h-2 overflow-hidden">
-                    <div className="bg-[#ccff00] h-full transition-all duration-300" style={{ width: `${audioProgress}%` }}></div>
+                  <div className="w-full bg-[#222] h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-300 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
+                        audioStatus === 'error' ? 'bg-red-500 shadow-red-500/50' : 
+                        audioStatus === 'success' ? 'bg-[#ccff00] shadow-[#ccff00]/50' : 
+                        'bg-[#ccff00] shadow-[#ccff00]/50'
+                      }`}
+                      style={{ width: `${audioProgress}%` }}
+                    ></div>
                   </div>
                 </div>
               )}
               {coverProgress >= 0 && (
-                <div>
-                  <div className="flex justify-between text-xs font-sans text-gray-400 mb-2">
-                    <span className="font-display tracking-widest uppercase text-white font-bold">Uploading Cover...</span>
-                    <span>{Math.round(coverProgress)}%</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-display uppercase tracking-[0.2em] text-gray-500 mb-1">Status</span>
+                      <span className="text-xs font-display uppercase tracking-widest text-white font-bold">
+                        {coverStatus === 'uploading' && "Processing Visual Assets"}
+                        {coverStatus === 'success' && "Visual Assets Processed"}
+                        {coverStatus === 'error' && "Visual Asset Error"}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-mono ${coverStatus === 'error' ? 'text-red-500' : 'text-[#ccff00]'}`}>{Math.round(coverProgress)}%</span>
                   </div>
-                  <div className="w-full bg-[#333] h-2 overflow-hidden">
-                    <div className="bg-[#ccff00] h-full transition-all duration-300" style={{ width: `${coverProgress}%` }}></div>
+                  <div className="w-full bg-[#222] h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-300 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
+                        coverStatus === 'error' ? 'bg-red-500 shadow-red-500/50' : 
+                        coverStatus === 'success' ? 'bg-[#ccff00] shadow-[#ccff00]/50' : 
+                        'bg-[#ccff00] shadow-[#ccff00]/50'
+                      }`}
+                      style={{ width: `${coverProgress}%` }}
+                    ></div>
                   </div>
                 </div>
               )}

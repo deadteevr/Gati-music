@@ -16,7 +16,7 @@ export default function ArtistNotifications({ user }: { user: any }) {
       setNotifications(data);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'notifications');
+      handleFirestoreError(error, OperationType.GET, 'notifications', false);
       setLoading(false);
     });
 

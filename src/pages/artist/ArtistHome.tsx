@@ -76,6 +76,8 @@ export default function ArtistHome({ user }: { user: any }) {
             inProgress: progressCount,
             totalStreams: totalStreamsCalc
           }));
+        }, (error) => {
+          console.error("Error in submissions snapshot", error);
         });
 
         // Fetch Royalties
@@ -131,6 +133,9 @@ export default function ArtistHome({ user }: { user: any }) {
             currentMonthEarnings
           }));
           
+          setLoading(false);
+        }, (error) => {
+          console.error("Error in royalties snapshot", error);
           setLoading(false);
         });
 

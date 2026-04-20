@@ -33,6 +33,7 @@ export enum OperationType {
 
 interface FirestoreErrorInfo {
   error: string;
+  userFriendlyMessage: string;
   operationType: OperationType;
   path: string | null;
   authInfo: {
@@ -45,10 +46,40 @@ interface FirestoreErrorInfo {
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: any, operationType: OperationType, path: string | null, shouldThrow = true) {
   const currentUser = auth.currentUser;
+  
+  let userFriendlyMessage = "An unexpected error occurred. Please try again later.";
+  const code = error?.code || "";
+
+  switch (code) {
+    case 'permission-denied':
+      userFriendlyMessage = "You don't have permission to perform this action. Ensure you're logged in correctly.";
+      break;
+    case 'not-found':
+      userFriendlyMessage = "The requested information could not be found.";
+      break;
+    case 'already-exists':
+      userFriendlyMessage = "This item already exists.";
+      break;
+    case 'resource-exhausted':
+      userFriendlyMessage = "Too many requests. Please wait a moment and try again.";
+      break;
+    case 'unavailable':
+      userFriendlyMessage = "The service is temporarily unavailable. Check your internet connection.";
+      break;
+    case 'unauthenticated':
+      userFriendlyMessage = "You must be logged in to do that.";
+      break;
+    default:
+      if (error instanceof Error) {
+        userFriendlyMessage = error.message;
+      }
+  }
+
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
+    userFriendlyMessage,
     authInfo: {
       userId: currentUser?.uid,
       email: currentUser?.email,
@@ -65,6 +96,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
+  
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  
+  if (shouldThrow) {
+    throw new Error(userFriendlyMessage);
+  }
 }
