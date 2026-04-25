@@ -63,6 +63,7 @@ export default function FAQPage() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.title = "FAQ | Gati Music Distribution";
   }, []);
 
   const faqs = [
@@ -132,6 +133,9 @@ export default function FAQPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] font-sans selection:bg-[#B6FF00] selection:text-black">
+      {/* SEO Canonical */}
+      <link rel="canonical" href="https://www.gatimusic.in/faq" />
+      
       {/* SEO Schema */}
       <script 
         type="application/ld+json"
@@ -184,6 +188,12 @@ export default function FAQPage() {
                 onClick={() => setOpenIndex(openIndex === index ? null : index)}
               />
             ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-gray-500 text-sm">
+              Don't see your question? Learn more about our <Link to="/blog" className="text-[#B6FF00] hover:underline">distribution guides</Link> or <Link to="/contact" className="text-[#B6FF00] hover:underline">contact support</Link>.
+            </p>
           </div>
 
           <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">

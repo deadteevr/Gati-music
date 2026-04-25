@@ -1,6 +1,6 @@
-Sitemap: https://www.gatimusic.in/sitemap.xml
-
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /artist-dashboard
+Disallow: /artist/dashboard
+
+Sitemap: https://www.gatimusic.in/sitemap.xml

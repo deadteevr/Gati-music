@@ -6,10 +6,14 @@ import { useEffect } from 'react';
 export default function PrivacyPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.title = "Privacy Policy | Gati Music Distribution";
   }, []);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] font-sans selection:bg-[#B6FF00] selection:text-black">
+      {/* SEO Canonical */}
+      <link rel="canonical" href="https://www.gatimusic.in/privacy-policy" />
+      
       {/* Background Glow */}
       <div className="fixed top-0 right-1/2 translate-x-1/2 w-full max-w-[1000px] h-[400px] bg-[#8B5CF6]/5 filter blur-[120px] -z-10 rounded-full"></div>
 

@@ -22,10 +22,14 @@ const EMAIL_ADDRESS = "gatimusic@gmail.com";
 export default function ContactPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.title = "Contact | Gati Music Distribution";
   }, []);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] font-sans selection:bg-[#B6FF00] selection:text-black overflow-x-hidden">
+      {/* SEO Canonical */}
+      <link rel="canonical" href="https://www.gatimusic.in/contact" />
+      
       {/* Background Decorative Glows */}
       <div className="fixed top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#B6FF00]/5 filter blur-[60px] md:blur-[120px] rounded-full pointer-events-none -z-10 opacity-50 md:opacity-100"></div>
       <div className="fixed bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#8B5CF6]/5 filter blur-[60px] md:blur-[120px] rounded-full pointer-events-none -z-10 opacity-50 md:opacity-100"></div>

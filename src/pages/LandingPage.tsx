@@ -109,6 +109,14 @@ export default function LandingPage() {
   const isMobile = useIsMobile();
   const heroRef = useRef(null);
 
+  useEffect(() => {
+    document.title = "Gati Music Distribution | Best Music Distribution in India";
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', "Release your song on Spotify in India with Gati Music Distribution. 48-hour delivery, WhatsApp support, and 80% artist royalties. The top choice for independent music distribution in India.");
+    }
+  }, []);
+
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"]
@@ -129,6 +137,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] selection:bg-[#B6FF00] selection:text-black font-sans overflow-x-hidden">
+      {/* SEO Canonical */}
+      <link rel="canonical" href="https://www.gatimusic.in/" />
       
       {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 w-full px-4 md:px-6 flex justify-between items-center z-50 transition-all duration-300 ${isScrolled ? 'bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-[#222] shadow-[0_4px_30px_rgba(0,0,0,0.5)] py-3' : 'bg-transparent py-5'}`}>
@@ -138,18 +148,19 @@ export default function LandingPage() {
         <div className="hidden md:flex items-center gap-8 font-display uppercase tracking-widest text-xs font-bold text-gray-400">
           <a href="#how-it-works" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">How it Works</a>
           <a href="#features" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Why Us</a>
-          <a href="#pricing" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Plans</a>
-          <a href="#faq" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">FAQ</a>
+          <Link to="/pricing" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Plans</Link>
+          <Link to="/blog" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Blog</Link>
+          <Link to="/faq" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">FAQ</Link>
         </div>
 
         <div className="hidden md:flex items-center gap-6">
           <Link to="/login" className="font-display uppercase tracking-widest text-xs font-bold text-white hover:text-[#B6FF00] hover:drop-shadow-[0_0_8px_rgba(182,255,0,0.5)] transition-all">Artist Login</Link>
-          <a 
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi`} target="_blank" rel="noopener noreferrer"
+          <Link 
+            to="/contact"
             className="border border-[#B6FF00]/50 text-[#B6FF00] px-5 py-2.5 rounded-full font-display uppercase tracking-widest text-xs font-bold hover:bg-[#B6FF00] hover:text-black hover:shadow-[0_0_15px_rgba(182,255,0,0.4)] transition-all duration-300"
           >
             Contact
-          </a>
+          </Link>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -229,16 +240,16 @@ export default function LandingPage() {
           <div className="relative mb-8">
             {/* Soft glow behind heading */}
             {!isMobile && <div className="absolute inset-0 bg-[#B6FF00]/20 blur-[80px] -z-10 rounded-full scale-75 opacity-50 will-change-transform"></div>}
-            <h1 className="text-[12vw] sm:text-[8vw] md:text-8xl leading-[0.85] font-display uppercase tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-              Gati Music Distribution <br className="hidden md:block"/> 
+            <h1 className="text-[10vw] sm:text-[7vw] md:text-7xl leading-[0.85] font-display uppercase tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+              Gati Music Distribution – Release <br className="hidden md:block"/> 
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#B6FF00] via-[#8B5CF6] to-[#3B82F6] drop-shadow-[0_0_15px_rgba(182,255,0,0.3)]">
-                Release Music Worldwide
+                Song on Spotify in India
               </span>
             </h1>
           </div>
 
           <p className="text-base md:text-xl text-gray-400 font-sans max-w-2xl mx-auto mb-12 leading-relaxed px-4">
-            The fastest music distribution service in India. Upload your music to Spotify, Apple Music & 250+ platforms with professional tools for independent artists.
+            The most reliable and affordable music distribution service in India. Get your songs on Spotify, Apple Music, and 250+ global platforms with human WhatsApp support.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center px-6">
@@ -246,12 +257,16 @@ export default function LandingPage() {
               text="Release Your Music" 
               className="bg-[#B6FF00] text-black w-full sm:w-auto px-10 py-5 rounded-full hover:bg-white hover:scale-105 hover:shadow-[0_0_40px_rgba(182,255,0,0.5)] duration-300 font-black text-lg" 
             />
-            <a 
-              href="#pricing"
+            <Link 
+              to="/pricing"
               className="inline-flex items-center justify-center gap-2 font-display uppercase tracking-widest font-bold border border-[#333] bg-[#0A0A0A]/50 backdrop-blur-md text-white w-full sm:w-auto px-10 py-5 rounded-full hover:bg-[#111] hover:border-[#8B5CF6] hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300 text-sm"
             >
               View Plans
-            </a>
+            </Link>
+          </div>
+          
+          <div className="mt-8 text-gray-500 text-[10px] uppercase tracking-[0.4em] font-bold">
+            Search <span className="text-[#B6FF00]">Gati Music Distribution</span> on Google
           </div>
         </motion.div>
       </section>
@@ -662,14 +677,16 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div className="col-span-1 md:col-span-2">
             <Logo className="mb-4 grayscale opacity-50 block w-full" />
-            <p className="max-w-sm">For the Artist, By the Artists. Direct support, budget-friendly prices, and lightning-fast worldwide delivery.</p>
+            <p className="max-w-sm">For the Artist, By the Artists. Gati Music Distribution provides lightning-fast delivery and direct WhatsApp support for independent creators in India.</p>
           </div>
           <div>
             <h4 className="font-display uppercase tracking-widest text-[#f5f5f5] mb-4">Quick Links</h4>
             <div className="flex flex-col gap-2">
-              <Link to="/about" className="hover:text-white transition-colors">About</Link>
-              <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
-              <Link to="/faq" className="hover:text-white transition-colors">FAQ</Link>
+              <Link to="/about" className="hover:text-white transition-colors">About Us</Link>
+              <Link to="/pricing" className="hover:text-white transition-colors">Pricing Plans</Link>
+              <Link to="/blog" className="hover:text-white transition-colors">Our Blog</Link>
+              <Link to="/contact" className="hover:text-white transition-colors">Contact Support</Link>
+              <Link to="/faq" className="hover:text-white transition-colors">Distribution FAQ</Link>
             </div>
           </div>
           <div>
@@ -680,8 +697,8 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto border-t border-[#1a1a1a] pt-8 text-center text-xs">
-          © 2026 Gati Music Distribution. All rights reserved.
+        <div className="max-w-6xl mx-auto border-t border-[#1a1a1a] pt-8 text-center text-[10px] uppercase tracking-[0.3em]">
+          © 2026 Gati Music Distribution. <span className="text-[#B6FF00]">Search for us on Google.</span>
         </div>
       </footer>
 

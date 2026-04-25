@@ -19,10 +19,14 @@ const WHATSAPP_NUMBER = "918299446820";
 export default function AboutPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.title = "About Us | Gati Music Distribution";
   }, []);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] font-sans selection:bg-[#B6FF00] selection:text-black overflow-x-hidden">
+      {/* Canonical URL for SEO */}
+      <link rel="canonical" href="https://www.gatimusic.in/about" />
+      
       {/* Background Decorative Glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#B6FF00]/5 filter blur-[60px] md:blur-[120px] rounded-full pointer-events-none -z-10 opacity-50 md:opacity-100"></div>
       <div className="fixed bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#8B5CF6]/5 filter blur-[60px] md:blur-[120px] rounded-full pointer-events-none -z-10 opacity-50 md:opacity-100"></div>
@@ -53,9 +57,17 @@ export default function AboutPage() {
             We move your <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#B6FF00] to-[#8B5CF6]">music forward.</span>
           </h1>
-          <p className="font-sans text-lg md:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
-            Gati Music Distribution was built to make distribution fast, simple, and affordable. No delays, no confusion—just real results.
+          <p className="font-sans text-lg md:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed mb-12">
+            Gati Music Distribution was built to make distribution fast, simple, and affordable. No delays, no confusion—just real results for independent Indian artists.
           </p>
+          <div className="flex flex-col md:flex-row gap-6 justify-center">
+            <Link to="/pricing" className="bg-[#B6FF00] text-black px-10 py-4 rounded-full font-display uppercase tracking-widest font-black text-sm hover:bg-white transition-all">
+              View Pricing
+            </Link>
+            <Link to="/blog" className="border border-[#222] text-white px-10 py-4 rounded-full font-display uppercase tracking-widest font-black text-sm hover:border-[#B6FF00] transition-all">
+              Read Our Blog
+            </Link>
+          </div>
         </motion.div>
       </section>
 
@@ -73,7 +85,7 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-display uppercase tracking-tight text-white mb-4">The Problem</h2>
             <p className="text-gray-400 font-sans leading-relaxed">
-              Traditional distribution is often broken—long email wait times, hidden fees, and automated rejections. Artists in India deserve better than "pending" status for weeks.
+              Traditional distribution is often broken—long email wait times, hidden fees, and automated rejections. Artists in India deserve better than "pending" status for weeks. Check our <a href="/faq" className="text-[#B6FF00] hover:underline">FAQ</a> to see how we handle these issues.
             </p>
           </motion.div>
 

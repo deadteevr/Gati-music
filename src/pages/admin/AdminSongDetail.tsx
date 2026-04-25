@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw, Trash2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
 export default function AdminSongDetail() {
@@ -160,6 +160,18 @@ export default function AdminSongDetail() {
     }
   };
 
+  const handleDeleteSong = async () => {
+    if (!window.confirm("CRITICAL: Are you sure you want to delete this song? This will permanently remove all metadata, artwork, and audio links from the database. This action is irreversible.")) return;
+    
+    try {
+      await deleteDoc(doc(db, 'submissions', id!));
+      alert("Song and associated metadata deleted successfully.");
+      navigate('/admin/songs');
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `submissions/${id}`);
+    }
+  };
+
   const handleAiMetaCheck = async () => {
     setAiChecking(true);
     setAiCheckReport(null);
@@ -248,6 +260,9 @@ export default function AdminSongDetail() {
           <button onClick={() => handleUpdateStatus('Sent to Stores')} className="flex-1 lg:flex-none border border-purple-400 text-purple-400 px-4 py-2 text-xs uppercase font-display font-bold tracking-widest hover:bg-purple-400 hover:text-white transition-colors">Sent to Stores</button>
           <button onClick={() => handleUpdateStatus('Live')} className="flex-1 lg:flex-none border border-[#ccff00] text-[#ccff00] px-4 py-2 text-xs uppercase font-display font-bold tracking-widest hover:bg-[#ccff00] hover:text-black transition-colors">Live</button>
           <button onClick={() => setShowChangesModal(true)} className="flex-1 lg:flex-none bg-red-600 text-white px-4 py-2 text-xs uppercase font-display font-bold tracking-widest hover:bg-red-700 transition-colors">Changes Required</button>
+          <button onClick={handleDeleteSong} className="flex-1 lg:flex-none border border-red-500 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 text-xs uppercase font-display font-bold tracking-widest transition-colors flex items-center justify-center gap-1">
+            <Trash2 size={14} /> Delete
+          </button>
         </div>
       </div>
 
@@ -411,9 +426,18 @@ export default function AdminSongDetail() {
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 border-b border-[#222] pb-1">Audio File</p>
                 {song.audioUrl ? (
-                  <a href={song.audioUrl} download={`Audio_${song.title}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#ccff00] text-black hover:bg-white py-3 text-xs font-display font-bold uppercase tracking-widest transition-colors shadow">
-                    <Download size={14} /> Download Audio
-                  </a>
+                  <div className="space-y-4">
+                    <audio 
+                      controls 
+                      className="w-full h-10 filter invert opacity-80"
+                      src={song.audioUrl}
+                    >
+                      Your browser does not support the audio element.
+                    </audio>
+                    <a href={song.audioUrl} download={`Audio_${song.title}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#ccff00] text-black hover:bg-white py-3 text-xs font-display font-bold uppercase tracking-widest transition-colors shadow">
+                      <Download size={14} /> Download Audio
+                    </a>
+                  </div>
                 ) : (
                    <p className="text-sm text-gray-500 italic">No audio provided.</p>
                 )}
