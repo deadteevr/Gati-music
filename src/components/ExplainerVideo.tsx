@@ -1,49 +1,82 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Globe, BarChart3, Wallet, CheckCircle2, Play, Pause, RotateCcw } from 'lucide-react';
+import { Upload, Globe, BarChart3, Wallet, CheckCircle2, Play, Pause, RotateCcw, Music, DollarSign, TrendingUp, Zap } from 'lucide-react';
 
 const STEPS = [
   {
     id: 1,
-    title: "Step 1: Upload Your Music",
+    title: "Upload Your Magic",
     hook: "Release your music worldwide in minutes.",
-    subtitle: "Drop your track and cover art. Our system handles the rest.",
+    subtitle: "Drop your FLAC/WAV files and high-res cover art. Our system handles the heavy lifting of metadata validation.",
     icon: <Upload className="w-12 h-12 text-[#B6FF00]" />,
-    color: "#B6FF00"
+    color: "#B6FF00",
+    particleColor: "rgba(182, 255, 0, 0.2)"
   },
   {
     id: 2,
-    title: "Step 2: Reach 150+ Stores",
+    title: "Reach 150+ Stores",
     hook: "Your sound. Every platform.",
-    subtitle: "Spotify, Apple Music, JioSaavn, and 150+ more in 48 hours.",
+    subtitle: "Spotify, Apple Music, JioSaavn, and 150+ more in 48 hours. Real-time delivery to major giants.",
     icon: <Globe className="w-12 h-12 text-[#8B5CF6]" />,
-    color: "#8B5CF6"
+    color: "#8B5CF6",
+    particleColor: "rgba(139, 92, 246, 0.2)"
   },
   {
     id: 3,
-    title: "Step 3: Real-Time Analytics",
+    title: "Real-Time Analytics",
     hook: "Watch your fanbase grow.",
-    subtitle: "Daily stream data and detailed earnings reports at your fingertips.",
+    subtitle: "Daily stream data and detailed demographics. See where your fans are and what they're listening to.",
     icon: <BarChart3 className="w-12 h-12 text-[#B6FF00]" />,
-    color: "#B6FF00"
+    color: "#B6FF00",
+    particleColor: "rgba(182, 255, 0, 0.2)"
   },
   {
     id: 4,
-    title: "Step 4: Withdraw Anytime",
+    title: "Withdraw Anytime",
     hook: "Your revenue, your way.",
-    subtitle: "Zero thresholds. Withdraw your earnings easily whenever you want.",
+    subtitle: "Zero thresholds. Keep 100% of your earnings. Withdraw your royalties easily whenever you want.",
     icon: <Wallet className="w-12 h-12 text-[#8B5CF6]" />,
-    color: "#8B5CF6"
+    color: "#8B5CF6",
+    particleColor: "rgba(139, 92, 246, 0.2)"
   }
 ];
 
 export default function ExplainerVideo() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [hasIntersected, setHasIntersected] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  const STEP_DURATION = 8000; // 8 seconds per step
+  const STEP_DURATION = 5000; // 5 seconds per step (faster)
+
+  // Particle background logic
+  const particles = useMemo(() => [...Array(20)].map((_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 4 + 2,
+    duration: Math.random() * 10 + 10
+  })), []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasIntersected) {
+          setHasIntersected(true);
+          setIsPlaying(true);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasIntersected]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -78,46 +111,90 @@ export default function ExplainerVideo() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto rounded-[2.5rem] overflow-hidden border border-[#222] bg-[#050505] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)] relative group">
-      {/* Video Content Area */}
-      <div className="aspect-video relative flex items-center justify-center overflow-hidden">
-        {/* Background Glare */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#111] via-black to-[#050505]"></div>
-        
+    <div ref={containerRef} className="w-full max-w-5xl mx-auto rounded-[2rem] sm:rounded-[3rem] overflow-hidden border border-[#222] bg-[#050505] shadow-[0_40px_100px_-20px_rgba(0,0,0,1)] relative group select-none z-10">
+      {/* Background Particles Layer */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        {particles.map((p) => (
+          <motion.div
+            key={p.id}
+            className="absolute rounded-full"
+            style={{ 
+              left: `${p.x}%`, 
+              top: `${p.y}%`, 
+              width: p.size, 
+              height: p.size,
+              backgroundColor: STEPS[currentStep].particleColor,
+              boxShadow: `0 0 10px ${STEPS[currentStep].particleColor}`
+            }}
+            animate={{
+              y: [0, -100, 0],
+              opacity: [0.1, 0.4, 0.1],
+              scale: [1, 1.5, 1]
+            }}
+            transition={{
+              duration: p.duration,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Main Content Area */}
+      <div className="aspect-[4/5] sm:aspect-video relative overflow-hidden flex flex-col">
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 z-0 opacity-30">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 45, 0]
+            }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,rgba(182,255,0,0.05)_0%,transparent_70%)]"
+          />
+        </div>
+
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.6 }}
-            className="relative z-10 w-full h-full flex items-center justify-center p-8 md:p-16"
+            initial={{ opacity: 0, x: 50, scale: 0.98, filter: "blur(10px)" }}
+            animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: -50, scale: 1.02, filter: "blur(10px)" }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full h-full flex items-center justify-center p-6 lg:p-20"
           >
-            {/* Visual Animation for each step */}
-            <div className="w-full h-full flex flex-col md:flex-row items-center gap-8 md:gap-16">
+            <div className="w-full h-full flex flex-col lg:flex-row items-center gap-8 lg:gap-24 overflow-y-auto sm:overflow-visible">
               
-              {/* Left: Graphic Animation */}
-              <div className="flex-1 w-full h-full flex items-center justify-center">
+              {/* Visual Visuals Cell */}
+              <div className="flex-1 w-full h-full flex items-center justify-center perspective-[1000px] min-h-[250px] sm:min-h-0">
                 {currentStep === 0 && (
                   <motion.div 
-                    initial={{ y: 20 }} animate={{ y: 0 }}
-                    className="relative w-full max-w-[280px] aspect-square rounded-3xl border-2 border-dashed border-[#B6FF00]/30 flex flex-col items-center justify-center bg-[#111]"
+                    initial={{ rotateX: 20, rotateY: -10 }}
+                    animate={{ rotateX: 0, rotateY: 0 }}
+                    transition={{ duration: 1 }}
+                    className="relative w-full max-w-[320px] aspect-square rounded-[2rem] border-2 border-dashed border-[#B6FF00]/20 flex flex-col items-center justify-center bg-[#0d0d0d] shadow-2xl"
                   >
                     <motion.div
-                      animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute inset-0 bg-[#B6FF00]/5 rounded-3xl"
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.3, 0.1] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="absolute w-40 h-40 bg-[#B6FF00] rounded-full blur-[80px]"
                     />
-                    <Upload className="w-16 h-16 text-[#B6FF00] mb-4" />
-                    <div className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Drop Audio File</div>
-                    <motion.div 
-                      initial={{ y: -50, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.5, type: 'spring' }}
-                      className="mt-6 px-4 py-2 bg-[#B6FF00] text-black rounded-lg text-xs font-black uppercase"
-                    >
-                      song_final.wav
-                    </motion.div>
+                    <div className="relative z-10 flex flex-col items-center">
+                      <motion.div
+                        animate={{ y: [0, -15, 0] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Upload className="w-24 h-24 text-[#B6FF00]" />
+                      </motion.div>
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-8 px-6 py-2.5 bg-[#B6FF00] text-black rounded-xl font-black text-xs uppercase tracking-widest shadow-[0_0_30px_rgba(182,255,0,0.5)]"
+                      >
+                        MY_NEW_HIT.WAV
+                      </motion.div>
+                    </div>
                   </motion.div>
                 )}
 
@@ -125,145 +202,224 @@ export default function ExplainerVideo() {
                   <div className="relative w-full h-full flex items-center justify-center">
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                      className="w-48 h-48 border border-[#8B5CF6]/20 rounded-full"
+                      transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+                      className="w-64 h-64 border border-[#8B5CF6]/10 rounded-full flex items-center justify-center"
+                    >
+                      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
+                        <motion.div
+                          key={i}
+                          className="absolute w-12 h-12 bg-[#111] border border-white/5 rounded-2xl flex items-center justify-center shadow-lg"
+                          style={{
+                            transform: `rotate(${angle}deg) translate(120px) rotate(-${angle}deg)`
+                          }}
+                        >
+                           <Music className="text-[#8B5CF6]/40" size={20} />
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                    <motion.div 
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+                      transition={{ duration: 4, repeat: Infinity }}
+                      className="absolute w-32 h-32 bg-[#8B5CF6]/10 rounded-full blur-3xl"
                     />
-                    <Globe className="absolute w-20 h-20 text-[#8B5CF6]" />
-                    {[0, 72, 144, 216, 288].map((angle, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2 * i }}
-                        className="absolute w-10 h-10 bg-[#111] border border-[#222] rounded-xl flex items-center justify-center text-[8px] font-bold"
-                        style={{
-                          transform: `rotate(${angle}deg) translateY(-80px) rotate(-${angle}deg)`
-                        }}
-                      >
-                         STORE
-                      </motion.div>
-                    ))}
+                    <Globe className="absolute w-24 h-24 text-[#8B5CF6] drop-shadow-[0_0_15px_rgba(139,92,246,0.5)]" />
                   </div>
                 )}
 
                 {currentStep === 2 && (
-                  <div className="w-full max-w-[300px] h-48 flex flex-col justify-end gap-2 px-4">
-                    <div className="flex items-end justify-between gap-1 h-32">
-                      {[40, 65, 45, 90, 75, 100].map((h, i) => (
+                  <div className="w-full max-w-[340px] h-64 flex flex-col justify-center bg-[#0d0d0d] rounded-3xl border border-white/5 p-8 relative overflow-hidden">
+                    <motion.div 
+                      animate={{ x: ["-100%", "100%"] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-[#B6FF00]/5 to-transparent z-0"
+                    />
+                    <div className="flex items-end justify-between gap-2 h-32 relative z-10 mb-6">
+                      {[30, 45, 35, 80, 60, 100, 50, 70].map((h, i) => (
                         <motion.div
                           key={i}
                           initial={{ height: 0 }}
                           animate={{ height: `${h}%` }}
-                          transition={{ delay: i * 0.1, duration: 1 }}
-                          className="flex-1 bg-[#B6FF00] rounded-t-lg"
+                          transition={{ delay: i * 0.1, duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                          className="flex-1 bg-gradient-to-t from-[#B6FF00]/20 to-[#B6FF00] rounded-t-full shadow-[0_0_15px_rgba(182,255,0,0.2)]"
                         />
                       ))}
                     </div>
-                    <div className="h-px bg-[#222] w-full" />
-                    <div className="flex justify-between text-[8px] uppercase tracking-widest text-gray-500">
-                      <span>Mon</span><span>Wed</span><span>Fri</span><span>Sun</span>
+                    <div className="flex justify-between items-center bg-[#1a1a1a] p-3 rounded-xl border border-white/5">
+                      <div className="text-[10px] uppercase font-bold text-gray-500">Peak Listener Time</div>
+                      <div className="text-[10px] font-black text-[#B6FF00]">09:30 PM IST</div>
                     </div>
                   </div>
                 )}
 
                 {currentStep === 3 && (
-                  <motion.div 
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="bg-[#111] p-8 rounded-3xl border border-[#222] text-center"
-                  >
-                    <div className="text-gray-500 text-[10px] uppercase tracking-[0.2em] mb-2 font-bold">Total Earnings</div>
-                    <div className="text-4xl font-display font-black text-[#B6FF00] mb-6">₹42,850.00</div>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      className="px-8 py-3 bg-[#8B5CF6] text-white rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2 group"
+                  <div className="relative">
+                    <motion.div 
+                      initial={{ y: 50, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="bg-[#0d0d0d] p-12 rounded-[2.5rem] border border-white/5 text-center shadow-2xl relative z-10"
                     >
-                      Withdraw Anytime <CheckCircle2 size={14} className="group-hover:scale-125 transition-transform" />
-                    </motion.button>
-                  </motion.div>
+                      <div className="w-16 h-16 bg-[#B6FF00]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <DollarSign className="text-[#B6FF00]" size={28} />
+                      </div>
+                      <div className="text-gray-500 text-xs uppercase tracking-[0.3em] mb-4 font-black">Net Revenue Available</div>
+                      <motion.div 
+                        initial={{ scale: 0.5 }}
+                        animate={{ scale: 1 }}
+                        className="text-6xl lg:text-7xl font-display font-black text-white mb-10 tracking-tighter"
+                      >
+                        ₹42<span className="text-[#8B5CF6]">,</span>850
+                      </motion.div>
+                      <motion.button
+                        whileHover={{ scale: 1.05, boxShadow: "0 0 40px rgba(139,92,246,0.3)" }}
+                        whileTap={{ scale: 0.95 }}
+                        className="w-full py-5 bg-[#8B5CF6] text-white rounded-2xl text-sm font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-[0_15px_30px_-5px_rgba(139,92,246,0.5)]"
+                      >
+                        Withdraw To Bank <Zap size={18} fill="currentColor" />
+                      </motion.button>
+                    </motion.div>
+                    {/* Floating Coins */}
+                    {[...Array(6)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute w-8 h-8 rounded-full border-4 border-[#B6FF00] opacity-20"
+                        animate={{ 
+                          y: [-20, 20], 
+                          rotate: 360,
+                          x: [0, (i % 2 === 0 ? 50 : -50)]
+                        }}
+                        transition={{ 
+                          duration: 3 + i, 
+                          repeat: Infinity, 
+                          repeatType: "reverse"
+                        }}
+                        style={{
+                          top: `${i * 20}%`,
+                          left: `${i * 15}%`,
+                          zIndex: 0
+                        }}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Right: Content & Subtitles */}
-              <div className="flex-1 flex flex-col justify-center text-center md:text-left">
+              {/* Textual Content Container */}
+              <div className="flex-1 flex flex-col justify-center text-center lg:text-left">
                 <motion.div
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
                 >
-                  <div className="inline-block px-3 py-1 rounded-full bg-[#111] border border-[#222] text-[#B6FF00] text-[10px] uppercase tracking-widest font-bold mb-4">
-                    Step {currentStep + 1} of 4
+                  <div className="flex items-center gap-4 mb-8 justify-center lg:justify-start">
+                    <span className="w-12 h-px bg-white/10" />
+                    <span className="text-[#8B5CF6] text-[10px] uppercase font-black tracking-[0.4em]">Feature Focus</span>
+                    <span className="w-12 h-px bg-white/10" />
                   </div>
-                  <h3 className="text-2xl md:text-4xl font-display uppercase tracking-tight text-white mb-4 leading-tight">
+
+                  <h3 className="text-4xl lg:text-6xl font-display uppercase tracking-tighter text-white mb-6 leading-[0.95]">
                     {STEPS[currentStep].title}
                   </h3>
-                  <p className="text-lg md:text-xl font-bold text-[#B6FF00] mb-3 leading-tight italic">
-                    "{STEPS[currentStep].hook}"
-                  </p>
-                  <p className="text-gray-400 text-sm md:text-base leading-relaxed max-w-sm">
+                  
+                  <div className="relative inline-block mb-8">
+                    <p className="text-2xl lg:text-3xl font-black text-[#B6FF00] leading-tight italic tracking-tight">
+                      "{STEPS[currentStep].hook}"
+                    </p>
+                    <motion.div 
+                      className="absolute -right-2 -top-2 w-3 h-3 bg-[#8B5CF6] rounded-full blur-[2px]"
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  </div>
+
+                  <p className="text-gray-400 text-lg lg:text-xl leading-relaxed max-w-lg mb-12">
                     {STEPS[currentStep].subtitle}
                   </p>
-                </motion.div>
-                
-                {/* Subtitle Progress Bar */}
-                <div className="mt-8 flex items-center gap-4">
-                   <div className="flex-1 h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+
+                  {/* Enhanced Progress Bar */}
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-end">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#333]">Transition Progress</div>
+                      <div className="text-[10px] font-mono text-white/40">{(progress).toFixed(0)}%</div>
+                    </div>
+                    <div className="h-2 bg-white/5 rounded-full overflow-hidden p-[2px]">
                       <motion.div 
-                        className="h-full bg-[#B6FF00]" 
+                        className="h-full rounded-full bg-gradient-to-r from-[#B6FF00] to-[#8B5CF6]" 
                         initial={{ width: "0%" }}
                         animate={{ width: `${progress}%` }}
                         transition={{ ease: "linear" }}
                       />
-                   </div>
-                   <div className="text-[#333] text-[10px] font-mono font-bold">
-                     0{(currentStep + 1)} / 04
-                   </div>
-                </div>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Video Overlays (Controls) */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 z-40 bg-black/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-[#B6FF00] transition-colors">
-            {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+        {/* Video Control Overlays */}
+        <div className="absolute top-4 left-4 sm:top-10 sm:left-10 z-50">
+          <div className="flex items-center gap-3 sm:gap-4 bg-black/60 backdrop-blur-xl px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl border border-white/5 group">
+             <div className="p-1.5 sm:p-2 bg-white/5 rounded-lg group-hover:bg-[#B6FF00]/10 transition-colors">
+                <Play size={12} className="text-[#B6FF00] sm:w-[14px]" />
+             </div>
+             <div className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-white/60">
+               Explainer <span className="text-white">v2.4</span>
+             </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 sm:gap-6 z-50 bg-black/80 backdrop-blur-3xl px-4 py-2 sm:px-8 sm:py-4 rounded-2xl sm:rounded-[2rem] border border-white/10 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 sm:scale-95 group-hover:scale-100 shadow-2xl">
+          <button 
+            onClick={() => setIsPlaying(!isPlaying)} 
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-white/5 hover:bg-[#B6FF00] hover:text-black transition-all"
+          >
+            {isPlaying ? <Pause size={16} className="sm:w-[20px]" /> : <Play size={16} className="ml-1 sm:w-[20px]" />}
           </button>
           
-          <div className="w-px h-4 bg-white/10"></div>
+          <div className="w-px h-5 sm:h-6 bg-white/10"></div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 sm:gap-4">
             {STEPS.map((_, i) => (
               <button
                 key={i}
                 onClick={() => handleStepClick(i)}
-                className={`w-2 h-2 rounded-full transition-all ${currentStep === i ? 'w-6 bg-[#B6FF00]' : 'bg-white/20 hover:bg-white/40'}`}
-              />
+                className="relative group/btn"
+              >
+                <div 
+                  className={`w-3 h-3 rounded-full transition-all duration-500 ${currentStep === i ? 'bg-[#B6FF00] scale-125' : 'bg-white/20 hover:bg-white/40'}`}
+                />
+                {currentStep === i && (
+                  <motion.div 
+                    layoutId="active-dot"
+                    className="absolute -inset-2 rounded-full border border-[#B6FF00]/30"
+                  />
+                )}
+              </button>
             ))}
           </div>
 
-          <div className="w-px h-4 bg-white/10"></div>
+          <div className="w-px h-6 bg-white/10"></div>
           
-          <button onClick={() => { setCurrentStep(0); setProgress(0); }} className="text-white hover:text-[#B6FF00] transition-colors">
-            <RotateCcw size={16} />
+          <button onClick={() => { setCurrentStep(0); setProgress(0); }} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-all text-white/60 hover:text-white">
+            <RotateCcw size={18} />
           </button>
         </div>
       </div>
       
-      {/* Mobile Steps Indicators (Progress Bar on top) */}
-      <div className="grid grid-cols-4 w-full h-1 bg-[#1a1a1a]">
-         {STEPS.map((_, i) => (
-           <div key={i} className="relative h-full overflow-hidden">
-             {i < currentStep && <div className="absolute inset-0 bg-[#B6FF00]" />}
-             {i === currentStep && <motion.div className="absolute inset-0 bg-[#B6FF00]" style={{ width: `${progress}%` }} />}
+      {/* Footer Meta */}
+      <div className="bg-[#080808] border-t border-[#1a1a1a] px-10 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex gap-8">
+           <div className="flex items-center gap-2">
+             <CheckCircle2 size={12} className="text-[#B6FF00]" />
+             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Auto-Metadata Engine</span>
            </div>
-         ))}
-      </div>
-      
-      {/* Hover Information */}
-      <div className="absolute top-6 right-6 z-40 pointer-events-none opacity-0 group-hover:opacity-60 transition-opacity">
-        <div className="bg-black/80 text-white text-[8px] uppercase tracking-widest font-black px-3 py-1 rounded-full border border-white/10">
-          Interactive Explainer • Loop Active
+           <div className="flex items-center gap-2">
+             <CheckCircle2 size={12} className="text-[#B6FF00]" />
+             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">DSD Core Distribution</span>
+           </div>
+        </div>
+        <div className="text-[10px] font-mono text-[#333]">
+          GATI_PLATFORM_VR_04 // 2026_BUILD
         </div>
       </div>
     </div>

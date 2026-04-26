@@ -1,54 +1,132 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main Pages -->
   <url>
     <loc>https://www.gatimusic.in/</loc>
-    <lastmod>2026-04-20</lastmod>
+    <lastmod>2026-04-26</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/about</loc>
-    <lastmod>2026-04-20</lastmod>
+    <lastmod>2026-04-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/pricing</loc>
-    <lastmod>2026-04-20</lastmod>
+    <lastmod>2026-04-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/contact</loc>
-    <lastmod>2026-04-20</lastmod>
+    <lastmod>2026-04-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/faq</loc>
-    <lastmod>2026-04-20</lastmod>
+    <lastmod>2026-04-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/blog</loc>
-    <lastmod>2026-04-20</lastmod>
+    <lastmod>2026-04-26</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.9</priority>
   </url>
+
+  <!-- Blog Posts -->
   <url>
     <loc>https://www.gatimusic.in/blog/best-music-distribution-india</loc>
-    <lastmod>2026-04-20</lastmod>
-    <priority>0.7</priority>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/blog/how-to-release-song-on-spotify-india</loc>
-    <lastmod>2026-04-20</lastmod>
-    <priority>0.7</priority>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.gatimusic.in/blog/gati-vs-others</loc>
-    <lastmod>2026-04-20</lastmod>
-    <priority>0.7</priority>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/music-marketing-india-2026</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/jiosaavn-vs-wynk-music</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/understanding-royalties-india</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/spotify-editorial-tips-india</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/haryanvi-punjabi-music-boom</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/copyright-laws-for-indian-artists</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/music-video-on-a-budget-india</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/artist-collaboration-strategies</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/social-media-musicians-2026</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/personal-branding-for-artists</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/dolby-atmos-music-distribution-india</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/music-publisher-vs-distributor</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/releasing-covers-legally-india</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/independent-artist-taxes-india</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.gatimusic.in/blog/metadata-best-practices</loc>
+    <lastmod>2026-04-26</lastmod>
+    <priority>0.8</priority>
   </url>
 </urlset>

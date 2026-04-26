@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Menu,
   X,
+  MoreVertical,
+  LayoutDashboard,
   MessageCircle,
   PiggyBank,
   BarChart3,
@@ -106,9 +108,22 @@ function useIsMobile() {
 
 export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const heroRef = useRef(null);
+
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     document.title = "Gati Music Distribution | Best Music Distribution in India";
@@ -152,22 +167,57 @@ export default function LandingPage() {
           <Link to="/pricing" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Plans</Link>
           <Link to="/blog" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">Blog</Link>
           <Link to="/faq" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">FAQ</Link>
+          
+          {/* More Menu (3 Dots) */}
+          <div className="relative" ref={moreMenuRef}>
+            <button 
+              onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+              className="p-2 hover:bg-white/5 rounded-full transition-all text-gray-400 hover:text-[#B6FF00]"
+            >
+              <MoreVertical size={18} />
+            </button>
+            
+            <AnimatePresence>
+              {isMoreMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 mt-2 w-48 bg-[#111] border border-[#222] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-50 py-2"
+                >
+                  <Link to="/about" className="block px-4 py-3 text-xs font-display uppercase tracking-widest text-gray-400 hover:text-white hover:bg-[#1a1a1a] transition-all">About Gati</Link>
+                  <Link to="/terms" className="block px-4 py-3 text-xs font-display uppercase tracking-widest text-gray-400 hover:text-white hover:bg-[#1a1a1a] transition-all">Terms of Use</Link>
+                  <Link to="/privacy" className="block px-4 py-3 text-xs font-display uppercase tracking-widest text-gray-400 hover:text-white hover:bg-[#1a1a1a] transition-all">Privacy Policy</Link>
+                  <div className="border-t border-[#222] my-1"></div>
+                  <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="block px-4 py-3 text-xs font-display uppercase tracking-widest text-[#B6FF00] hover:bg-[#1a1a1a] transition-all">WhatsApp Help</a>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6">
-          <Link to="/login" className="font-display uppercase tracking-widest text-xs font-bold text-white hover:text-[#B6FF00] hover:drop-shadow-[0_0_8px_rgba(182,255,0,0.5)] transition-all">Artist Login</Link>
+        <div className="flex items-center gap-2 md:gap-6">
+          <Link 
+            to="/login" 
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#B6FF00]/10 border border-[#B6FF00]/20 rounded-lg hover:bg-[#B6FF00] hover:text-black transition-all group whitespace-nowrap"
+          >
+            <LayoutDashboard size={14} className="group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Dashboard</span>
+          </Link>
+
+          <Link to="/login" className="hidden md:block font-display uppercase tracking-widest text-xs font-bold text-white hover:text-[#B6FF00] hover:drop-shadow-[0_0_8px_rgba(182,255,0,0.5)] transition-all">Artist Login</Link>
           <Link 
             to="/contact"
-            className="border border-[#B6FF00]/50 text-[#B6FF00] px-5 py-2.5 rounded-full font-display uppercase tracking-widest text-xs font-bold hover:bg-[#B6FF00] hover:text-black hover:shadow-[0_0_15px_rgba(182,255,0,0.4)] transition-all duration-300"
+            className="hidden md:block border border-[#B6FF00]/50 text-[#B6FF00] px-5 py-2.5 rounded-full font-display uppercase tracking-widest text-xs font-bold hover:bg-[#B6FF00] hover:text-black hover:shadow-[0_0_15px_rgba(182,255,0,0.4)] transition-all duration-300"
           >
             Contact
           </Link>
+          
+          {/* Mobile Menu Toggle */}
+          <button className="md:hidden text-white p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
-
-        {/* Mobile Menu Toggle */}
-        <button className="md:hidden text-white p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </nav>
 
       {/* Mobile Nav Overlay */}
@@ -184,6 +234,14 @@ export default function LandingPage() {
               <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">Plans & Pricing</a>
               <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">FAQ</a>
               <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-[#ccff00] border-b border-[#1a1a1a] pb-4">Artist Login</Link>
+            </div>
+
+            <div className="flex flex-col gap-4 mt-4">
+              <h4 className="text-[10px] font-display uppercase tracking-[0.3em] text-gray-500 font-bold">More</h4>
+              <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">About Gati</Link>
+              <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">Blog</Link>
+              <Link to="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">Terms</Link>
+              <Link to="/privacy" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">Privacy</Link>
             </div>
             
             <WhatsAppButton 

@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, User, Share2, MessageCircle, ArrowUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Clock, User, Share2, MessageCircle, ArrowUp, Search, X } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import Fuse from 'fuse.js';
 
 const BLOG_POSTS = {
   "best-music-distribution-india": {
@@ -374,6 +375,47 @@ export default function BlogPage() {
   const post = slug ? BLOG_POSTS[slug as keyof typeof BLOG_POSTS] : null;
 
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Logic for Related Posts
+  const relatedPosts = useMemo(() => {
+    if (!slug || !post) return [];
+    
+    const currentKeywords = post.keywords.split(',').map(k => k.trim().toLowerCase());
+    
+    return Object.entries(BLOG_POSTS)
+      .filter(([s]) => s !== slug) // Don't include current post
+      .map(([s, p]) => {
+        const postKeywords = p.keywords.split(',').map(k => k.trim().toLowerCase());
+        const intersection = currentKeywords.filter(k => postKeywords.includes(k));
+        return { slug: s, post: p, score: intersection.length };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+  }, [slug, post]);
+
+  // Logic for Search results
+  const fuse = useMemo(() => {
+    const postsArray = Object.entries(BLOG_POSTS).map(([s, p]) => ({
+      slug: s,
+      ...p
+    }));
+    
+    return new Fuse(postsArray, {
+      keys: ['title', 'author', 'keywords'],
+      threshold: 0.4,
+      distance: 100,
+      location: 0,
+    });
+  }, []);
+
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery.trim()) return Object.entries(BLOG_POSTS);
+    
+    const results = fuse.search(searchQuery);
+    return results.map(r => [r.item.slug, r.item]);
+  }, [searchQuery, fuse]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -407,21 +449,76 @@ export default function BlogPage() {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] pt-40 px-6 text-center">
+      <div className="min-h-screen bg-[#0A0A0A] pt-40 pb-20 px-6">
         {/* Canonical URL for SEO */}
         <link rel="canonical" href="https://www.gatimusic.in/blog" />
         
-        <h1 className="text-4xl font-display uppercase mb-8">Our Blog</h1>
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {Object.entries(BLOG_POSTS).map(([s, p]) => (
-            <Link key={s} to={`/blog/${s}`} className="bg-[#111] p-6 rounded-3xl border border-[#222] hover:border-[#B6FF00] transition-all text-left group">
-              <h2 className="text-xl font-display uppercase tracking-tight mb-4 group-hover:text-white transition-colors">{p.title}</h2>
-              <div className="text-gray-500 text-xs uppercase tracking-widest">{p.date}</div>
-            </Link>
-          ))}
+        <header className="fixed top-0 left-0 right-0 px-6 py-4 flex justify-between items-center z-50 bg-[#0A0A0A]/80 backdrop-blur-xl border-b border-[#1a1a1a]">
+          <Link to="/" className="font-display font-black tracking-tighter flex items-center gap-1 group">
+            <span className="text-[#B6FF00] text-2xl">gati</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] mt-2 group-hover:bg-white transition-colors"></span>
+          </Link>
+          <Link to="/pricing" className="text-xs font-display uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Plans</Link>
+        </header>
+
+        <div className="max-w-6xl mx-auto text-center mb-16">
+          <h1 className="text-5xl md:text-7xl font-display uppercase tracking-tighter mb-6">Our Blog</h1>
+          <p className="text-gray-400 max-w-2xl mx-auto mb-10">Guides, insights, and news for independent artists in India.</p>
+          
+          {/* Search Bar */}
+          <div className="relative max-w-lg mx-auto mb-12">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search by title, author, or topic..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#111] border border-[#222] rounded-full py-4 pl-12 pr-12 text-sm focus:outline-none focus:border-[#B6FF00] transition-all"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="mt-20 max-w-2xl mx-auto p-12 rounded-[2rem] bg-gradient-to-br from-[#111] to-[#050505] border border-[#222]">
+        {filteredPosts.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {filteredPosts.map(([s, p]) => (
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                key={s}
+              >
+                <Link to={`/blog/${s}`} className="bg-[#111] p-8 rounded-3xl border border-[#222] hover:border-[#B6FF00] transition-all text-left group flex flex-col h-full shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+                  <div className="text-[#B6FF00] text-[10px] uppercase tracking-widest font-bold mb-4">{p.author}</div>
+                  <h2 className="text-2xl font-display uppercase tracking-tight mb-6 group-hover:text-white transition-colors flex-grow leading-tight">{p.title}</h2>
+                  <div className="flex items-center justify-between text-gray-500 text-[10px] uppercase tracking-widest font-bold pt-6 border-t border-[#222]">
+                    <div className="flex items-center gap-1.5"><Clock size={12} /> {p.readTime}</div>
+                    <div>{p.date}</div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-gray-500 text-xl font-display uppercase tracking-widest">No matching posts found for "{searchQuery}"</p>
+            <button 
+              onClick={() => setSearchQuery("")}
+              className="mt-6 text-[#B6FF00] hover:underline uppercase tracking-widest text-xs font-bold"
+            >
+              Clear Search
+            </button>
+          </div>
+        )}
+
+        <div className="mt-32 max-w-2xl mx-auto p-12 rounded-[2rem] bg-gradient-to-br from-[#111] to-[#050505] border border-[#222] text-center">
            <h2 className="text-3xl font-display uppercase mb-6">Need help with your release?</h2>
            <p className="text-gray-400 mb-8">Check our detailed <a href="/faq" className="text-[#B6FF00] hover:underline">FAQ section</a> or <a href="/contact" className="text-[#B6FF00] hover:underline">contact us</a> for customized distribution support.</p>
            <Link to="/pricing" className="inline-block px-10 py-4 rounded-full bg-[#B6FF00] text-black font-display uppercase tracking-widest font-black hover:bg-white transition-all">
@@ -491,6 +588,23 @@ export default function BlogPage() {
           <div className="mt-12 text-center text-gray-500 text-xs uppercase tracking-[0.3em] font-bold">
              Search <span className="text-[#B6FF00]">Gati Music Distribution</span> on Google
           </div>
+
+          {/* Related Posts Section */}
+          {relatedPosts.length > 0 && (
+            <div className="mt-32 pt-20 border-t border-[#1a1a1a]">
+              <h3 className="text-3xl font-display uppercase tracking-tighter mb-12 text-white">Related Posts</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {relatedPosts.map(({ slug: s, post: p }) => (
+                  <Link key={s} to={`/blog/${s}`} className="group block bg-[#111] p-6 rounded-2xl border border-[#222] hover:border-[#B6FF00]/50 transition-all">
+                    <div className="text-[10px] text-[#B6FF00] font-bold uppercase tracking-widest mb-3">{p.date}</div>
+                    <h4 className="text-lg font-display uppercase tracking-tight text-white mb-2 leading-tight group-hover:text-[#B6FF00] transition-colors line-clamp-2">
+                      {p.title}
+                    </h4>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </motion.div>
       </main>
 
