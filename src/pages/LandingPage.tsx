@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
 import { Link } from 'react-router-dom';
+import ExplainerVideo from '../components/ExplainerVideo';
 import { 
   ArrowRight, 
   Headphones, 
@@ -325,7 +326,17 @@ export default function LandingPage() {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#333] to-transparent"></div>
         
         <div className="max-w-6xl mx-auto relative z-10 flex flex-col items-center">
-          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter mb-16 md:mb-24 text-center text-white">How Gati Distribution Works</h2>
+          <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter mb-10 text-center text-white">How Gati Distribution Works</h2>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="w-full max-w-4xl mx-auto mb-20 relative px-4"
+          >
+            <ExplainerVideo />
+          </motion.div>
           
           <motion.div 
             variants={containerVariants} 

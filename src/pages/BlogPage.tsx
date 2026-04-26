@@ -266,6 +266,106 @@ const BLOG_POSTS = {
       
       <p>Your brand starts with a professional release. <a href="/pricing">Choose a plan</a> that reflects your ambition. For custom brand advice, <a href="/contact">contact our team</a>.</p>
     `
+  },
+  "dolby-atmos-music-distribution-india": {
+    title: "Dolby Atmos Music Distribution in India: The Future of Sound",
+    metaTitle: "Dolby Atmos Music Distribution India | Release Spatial Audio",
+    metaDescription: "Step into the future with Dolby Atmos. Learn how to release spatial audio tracks in India and why it's becoming a requirement for Apple Music.",
+    date: "May 16, 2026",
+    author: "Sound Engineer",
+    readTime: "9 min read",
+    keywords: "dolby atmos india, spatial audio distribution, apple music atmos",
+    content: `
+      <p>The way we listen to music is changing. <strong>Dolby Atmos and Spatial Audio</strong> are no longer just for cinema; they are becoming the gold standard for independent music releases in India.</p>
+      
+      <h2>What is Dolby Atmos?</h2>
+      <p>Unlike traditional stereo, Dolby Atmos allows sound to be placed in a 3D environment. This creates an immersive experience that puts the listener inside the song. Major platforms like Apple Music and Amazon Music now prioritize Atmos tracks in their search and recommendations.</p>
+      
+      <h3>How to Distribute Atmos in India?</h3>
+      <p>Distributing Atmos requires specialized ADM files. At Gati, we help you navigate the technical requirements to ensure your spatial audio version is linked correctly to your stereo track. Check our <a href="/pricing">premium plans</a> for Atmos support.</p>
+      
+      <p>Investing in an Atmos mix can significantly boost your discovery on global playlists. For technical specs, see our <a href="/faq">FAQ</a>.</p>
+    `
+  },
+  "music-publisher-vs-distributor": {
+    title: "Music Publisher vs Distributor: What's the Difference?",
+    metaTitle: "Music Publisher vs Distributor India | Clear Comparison for Artists",
+    metaDescription: "Don't confuse publishing with distribution. Learn the roles of each and how they work together to collect your global music royalties.",
+    date: "May 18, 2026",
+    author: "Industry Consultant",
+    readTime: "7 min read",
+    keywords: "publisher vs distributor, music publishing india, distribution vs publishing",
+    content: `
+      <p>One of the most common questions Indian artists ask is: <strong>Do I need a publisher or a distributor?</strong> The simple answer is: you usually need both, but they serve very different purposes.</p>
+      
+      <h2>The Distributor: The Delivery Service</h2>
+      <p>A distributor like <a href="/">Gati Music</a> sends your sound recordings to stores (Spotify, Apple Music, Gaana) and collects recording royalties. They are responsible for the 'Master' side of the business.</p>
+      
+      <h2>The Publisher: The Rights Manager</h2>
+      <p>A publisher manages the 'Songwriting' side. They ensure you get paid when your lyrics or melodies are used, covered, or performed. In India, many artists act as their own publishers by registering with IPRS.</p>
+      
+      <p>Understanding this distinction is key to professionalizing your career. If you're ready to start the distribution side, <a href="/pricing">view our plans</a>.</p>
+    `
+  },
+  "releasing-covers-legally-india": {
+    title: "How to Release Cover Songs Legally in India: A Guide",
+    metaTitle: "Release Cover Songs Legally India | Mechanical Licensing Guide",
+    metaDescription: "Want to release a Bollywood cover? Learn how to get the correct mechanical licenses in India and avoid copyright strikes on your profile.",
+    date: "May 20, 2026",
+    author: "Copyright Specialist",
+    readTime: "8 min read",
+    keywords: "release cover song india, mechanical license music, legal covers",
+    content: `
+      <p>Covers are a great way to grow your fanbase in India. However, <strong>releasing a cover song legally</strong> requires a specific license called a Mechanical License.</p>
+      
+      <h2>Don't Just Upload</h2>
+      <p>Uploading a cover without a license can lead to your track being taken down and your account being flagged. In India, most distributors require you to provide proof of permission for the musical work (composition). Gati simplifies this by guiding you through the license acquisition process.</p>
+      
+      <h3>Public Domain vs. Copyrighted</h3>
+      <p>If you're covering a folk song that is 100 years old, it might be in the public domain. But for any modern Bollywood or Pop hit, you must follow the legal route. Contact our <a href="/contact">support team</a> if you're planning a cover release.</p>
+      
+      <p>Read more about rights in our <a href="/blog/copyright-laws-for-indian-artists">copyright guide</a>.</p>
+    `
+  },
+  "independent-artist-taxes-india": {
+    title: "Taxes for Independent Artists in India: What You Need to Know",
+    metaTitle: "Musician Taxes India Guide | Income Tax & GST for Artists",
+    metaDescription: "Managing your music money. A simple guide to GST, TDS, and Income Tax for independent musicians and labels in India.",
+    date: "May 22, 2026",
+    author: "Tax Expert",
+    readTime: "10 min read",
+    keywords: "artist taxes india, musician gst, income tax for artists",
+    content: `
+      <p>As your streams grow, so does your financial responsibility. <strong>Taxation for artists in India</strong> doesn't have to be a headache if you understand the basics.</p>
+      
+      <h2>TDS on Royalties</h2>
+      <p>When you receive your royalty payouts from your <strong>music distributor in India</strong>, you might notice a small deduction called TDS (Tax Deducted at Source). This is standard practice. You can claim this back when you file your Income Tax Return (ITR).</p>
+      
+      <h2>When Do You Need GST?</h2>
+      <p>Most independent artists don't need GST unless their annual turnover exceeds ₹20 Lakhs (or ₹10 Lakhs in some states). However, if you're a professional label, getting GST registered can help you claim input tax credits on your studio sessions and gear.</p>
+      
+      <p>Professionalize your business today by tracking your expenses. For more business tips, see our <a href="/blog">blog</a>.</p>
+    `
+  },
+  "metadata-best-practices": {
+    title: "Music Metadata Best Practices: Why Clean Data is Everything",
+    metaTitle: "Music Metadata Best Practices India | Get Paid & Found Faster",
+    metaDescription: "Metadata is the secret language of the music industry. Learn the best practices for Indian languages to ensure your music is indexed correctly.",
+    date: "May 24, 2026",
+    author: "Data Manager",
+    readTime: "6 min read",
+    keywords: "music metadata best practices, indexing music, regional language metadata",
+    content: `
+      <p>Metadata is everything that isn't the audio file. It's your name, the title, the genre, and the contributors. <strong>Accurate music metadata</strong> is why some artists appear in search results while others stay hidden.</p>
+      
+      <h2>The Regional Language Challenge</h2>
+      <p>In India, metadata can be tricky with transliteration (e.g., Hindi written in English script). Always use the standard English transliteration for store titles to ensure consistency across global platforms. Gati's <a href="/">manual review team</a> checks your metadata to prevent common indexing errors.</p>
+      
+      <h3>Proper Credit Attribution</h3>
+      <p>Don't forget your lyricists and composers! Proper attribution is not just about respect—it's about legal compliance and eligibility for awards. If you have questions about specific fields, check our <a href="/faq">FAQ</a>.</p>
+      
+      <p>Ready to submit? <a href="/login">Login</a> and start your next release with perfect metadata.</p>
+    `
   }
 };
 
