@@ -17,7 +17,7 @@ import {
 import { useEffect } from 'react';
 
 const WHATSAPP_NUMBER = "+91 7626841258";
-const EMAIL_ADDRESS = "gatimusic@gmail.com";
+const EMAIL_ADDRESS = "gatimusicdistribution@gmail.com";
 
 export default function ContactPage() {
   useEffect(() => {

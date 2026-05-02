@@ -1,14 +1,19 @@
-import { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, limit, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase';
+import React, { useEffect, useState } from 'react';
+import { collection, query, where, getDocs, limit, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Music, TrendingUp, TrendingDown, Radio, Activity, CalendarDays, Bell } from 'lucide-react';
+import { ArrowRight, Music, TrendingUp, TrendingDown, Radio, Activity, CalendarDays, Bell, MessageSquare, Send, CheckCircle2, Sparkles, Lightbulb, Globe, Plus, Megaphone, IndianRupee, ShieldAlert } from 'lucide-react';
+import { geminiService, GrowthInsights, NextActions } from '../../services/geminiService';
+import { AIThinking } from '../../components/AIComponents';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
 
-export default function ArtistHome({ user }: { user: any }) {
+import { getRemainingDays, isPlanActive } from '../../lib/planUtils';
+
+export default function ArtistHome({ user, userData }: { user: any, userData: any }) {
   const [stats, setStats] = useState({ 
     totalSongs: 0, 
     liveSongs: 0, 
@@ -17,13 +22,84 @@ export default function ArtistHome({ user }: { user: any }) {
     currentMonthEarnings: 0,
     totalStreams: 0 
   });
+
+  const subscription = userData?.subscription;
+  const isSubscribed = isPlanActive(subscription);
+  const daysLeft = getRemainingDays(subscription?.expiryDate);
+  const showExpiryAlert = isSubscribed && daysLeft <= 2;
   const [chartData, setChartData] = useState<any[]>([]);
   const [pieData, setPieData] = useState<any[]>([]);
   const [growth, setGrowth] = useState<number | null>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [feedback, setFeedback] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiInsights, setAiInsights] = useState<GrowthInsights | null>(null);
+  const [aiActions, setAiActions] = useState<NextActions | null>(null);
+
+  const generateAIContext = async () => {
+    if (loading || stats.totalSongs === 0) return;
+    setAiLoading(true);
+    try {
+      const [insights, actions] = await Promise.all([
+        geminiService.analyzeGrowth({
+          currentStreams: stats.totalStreams,
+          previousStreams: stats.totalStreams * 0.9,
+          currentEarnings: stats.totalEarnings,
+          previousEarnings: stats.totalEarnings - stats.currentMonthEarnings,
+          totalReleases: stats.totalSongs
+        }),
+        geminiService.suggestNextActions({
+          streamsTrend: growth && growth > 0 ? 'increasing' : growth && growth < 0 ? 'decreasing' : 'stable',
+          releaseFrequency: stats.totalSongs > 5 ? 'high' : stats.totalSongs > 2 ? 'medium' : 'low',
+          bestSongStreams: stats.totalStreams * 0.4,
+          averageStreams: stats.totalStreams / (stats.totalSongs || 1)
+        })
+      ]);
+      setAiInsights(insights);
+      setAiActions(actions);
+    } catch (err) {
+      console.error("AI Context generation error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && stats.totalSongs > 0 && !aiInsights) {
+      generateAIContext();
+    }
+  }, [loading, stats.totalSongs]);
+
   const COLORS = ['#ccff00', '#9d4edd', '#ffffff', '#777777', '#333333', '#111111'];
+
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedback.trim()) return;
+
+    setSubmittingFeedback(true);
+    try {
+      await addDoc(collection(db, 'feedback'), {
+        uid: user.uid,
+        userName: user.displayName,
+        userEmail: user.email,
+        message: feedback,
+        createdAt: serverTimestamp(),
+        status: 'new'
+      });
+      setFeedback("");
+      setFeedbackSent(true);
+      setTimeout(() => setFeedbackSent(false), 5000);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'feedback');
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
   useEffect(() => {
     let unsubSub: any;
@@ -32,7 +108,6 @@ export default function ArtistHome({ user }: { user: any }) {
     const fetchSummary = async () => {
       try {
         setLoading(true);
-        // Fetch Submissions
         const subQuery = query(collection(db, 'submissions'), where('uid', '==', user.uid));
         
         unsubSub = onSnapshot(subQuery, (subDocs) => {
@@ -77,10 +152,9 @@ export default function ArtistHome({ user }: { user: any }) {
             totalStreams: totalStreamsCalc
           }));
         }, (error) => {
-          console.error("Error in submissions snapshot", error);
+          handleFirestoreError(error, OperationType.LIST, 'submissions', false);
         });
 
-        // Fetch Royalties
         const royQuery = query(collection(db, 'royalties'), where('uid', '==', user.uid));
         unsubRoy = onSnapshot(royQuery, (royDocs) => {
           let totalEarnings = 0;
@@ -92,7 +166,6 @@ export default function ArtistHome({ user }: { user: any }) {
             royaltiesList.push(data);
           });
 
-          // Sort by date properly for trend context
           royaltiesList.sort((a, b) => {
             const parseMonth = (str: string) => new Date(`${str} 1`).getTime();
             return parseMonth(a.reportMonth) - parseMonth(b.reportMonth);
@@ -110,7 +183,6 @@ export default function ArtistHome({ user }: { user: any }) {
             currentMonthEarnings = royaltiesList[royaltiesList.length - 1].amount;
           }
 
-          // Calc Growth
           let growthCalc = null;
           if (royaltiesList.length >= 2) {
             const curr = royaltiesList[royaltiesList.length - 1].amount;
@@ -135,18 +207,26 @@ export default function ArtistHome({ user }: { user: any }) {
           
           setLoading(false);
         }, (error) => {
-          console.error("Error in royalties snapshot", error);
+          handleFirestoreError(error, OperationType.LIST, 'royalties', false);
           setLoading(false);
         });
 
-        // Recent Activity (Notifications limit 3)
         const notifQuery = query(collection(db, 'notifications'), where('uid', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
-        const notifDocs = await getDocs(notifQuery);
-        const activityList: any[] = [];
-        notifDocs.forEach(d => {
-          activityList.push({ id: d.id, ...d.data() });
+        const unsubNotif = onSnapshot(notifQuery, (notifDocs) => {
+          const activityList: any[] = [];
+          notifDocs.forEach(d => {
+            activityList.push({ id: d.id, ...d.data() });
+          });
+          setRecentActivity(activityList);
+        }, (error) => {
+          console.error("ArtistHome: notifications snapshot error", error);
         });
-        setRecentActivity(activityList);
+
+        return () => {
+          if (unsubSub) unsubSub();
+          if (unsubRoy) unsubRoy();
+          unsubNotif();
+        };
 
       } catch (e) {
         console.error(e);
@@ -154,11 +234,12 @@ export default function ArtistHome({ user }: { user: any }) {
       }
     };
     
-    fetchSummary();
+    const unsubPromise = fetchSummary();
 
     return () => {
-      if (unsubSub) unsubSub();
-      if (unsubRoy) unsubRoy();
+      unsubPromise.then(unsubFn => {
+        if (unsubFn) unsubFn();
+      });
     };
   }, [user.uid]);
 
@@ -192,8 +273,20 @@ export default function ArtistHome({ user }: { user: any }) {
         <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">Welcome, {user.displayName?.split(' ')[0] || 'Artist'}</h1>
         <p className="text-gray-400 font-sans tracking-wide">Track your performance, earnings & releases</p>
       </div>
+
+      {showExpiryAlert && (
+        <div className="bg-red-500 text-white p-4 border border-red-600 flex flex-col sm:flex-row items-center justify-between gap-4 mb-10 group animate-pulse hover:animate-none transition-all">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="shrink-0" />
+            <div>
+              <p className="font-display font-black uppercase text-sm tracking-widest">Subscription Expiring Soon</p>
+              <p className="text-[10px] font-sans opacity-90 uppercase tracking-widest leading-tight">Your distribution plan ends in {daysLeft} day{daysLeft !== 1 ? 's' : ''}. Renew now to keep your uploads active.</p>
+            </div>
+          </div>
+          <Link to="/pricing" className="w-full sm:w-auto bg-white text-black px-6 py-2 font-display uppercase font-extrabold text-[10px] tracking-widest hover:bg-[#ccff00] transition-colors text-center whitespace-nowrap">Renew Plan</Link>
+        </div>
+      )}
       
-      {/* 6 Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-10">
         <div className="bg-[#111] border border-[#333] p-5 relative overflow-hidden group">
           <div className="flex items-center justify-between text-gray-400 mb-4">
@@ -228,7 +321,7 @@ export default function ArtistHome({ user }: { user: any }) {
         <div className="bg-[#111] border border-[#333] p-5 relative overflow-hidden group">
           <div className="flex items-center justify-between text-gray-400 mb-4">
             <span className="font-display font-medium uppercase text-xs tracking-widest z-10 relative">Total Earnings</span>
-            <IndianRupeeIcon opacity={0.5} className="z-10 relative" />
+            <IndianRupee size={18} opacity={0.5} className="z-10 relative text-gray-400" />
           </div>
           <div className="text-4xl font-display text-white z-10 relative truncate">
             ₹{loading ? '-' : stats.totalEarnings.toFixed(2)}
@@ -264,206 +357,199 @@ export default function ArtistHome({ user }: { user: any }) {
         </div>
       </div>
 
-      {/* Row 1 Charts */}
       <div className="grid lg:grid-cols-3 gap-6 mb-12">
-        {/* Earnings Chart */}
-        <div className="lg:col-span-2 bg-[#111] border border-[#333] p-6 lg:p-8">
-          <div>
-            <h3 className="text-lg font-display uppercase tracking-widest text-white mb-1">Monthly Earnings Trend</h3>
-            <p className="text-gray-500 font-sans text-sm mb-6">Track your revenue growth over time</p>
+        <div className="lg:col-span-2 bg-[#ccff00] p-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+             <Megaphone size={140} className="text-black" />
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="max-w-md">
+              <h3 className="text-3xl font-display uppercase font-black text-black leading-tight mb-4">Go Viral.<br/>Promote Your Song.</h3>
+              <p className="text-black/70 text-sm font-sans mb-0 font-medium tracking-tight">Boost your streams with professional Google and Meta ad campaigns. Access YouTube promotion, Spotify playlist pitching, and viral Reel campaigns starting from ₹199.</p>
+            </div>
+            <Link 
+              to="/pricing" 
+              className="inline-flex items-center gap-2 bg-black text-white px-8 py-4 text-[10px] font-display uppercase font-black tracking-widest hover:bg-zinc-900 transition-all shadow-xl hover:shadow-[#ccff00]/20 shrink-0"
+            >
+              Start Promotion <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+
+        <div className="bg-[#111] p-8 border border-[#333] flex flex-col justify-center relative group">
+          <div className="absolute top-0 right-0 p-2 text-[#ccff00]/10">
+            <Sparkles size={60} />
+          </div>
+          <h3 className="text-xl font-display uppercase font-black text-white mb-2 leading-none">Need More<br/>Views?</h3>
+          <p className="text-gray-500 text-xs font-sans mb-6">Real India-based marketing for your latest release.</p>
+          <a 
+            href={`https://wa.me/917626841258?text=Hi, I want to promote my new song: ${user.displayName || user.email}`}
+            target="_blank" rel="noopener noreferrer"
+            className="w-full py-3 bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-center text-[10px] uppercase font-display font-black tracking-widest hover:bg-[#ccff00] hover:text-black transition-all"
+          >
+            Chat with Expert
+          </a>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-8 mb-12">
+        <div className="lg:col-span-8 bg-[#111] p-6 lg:p-8 border border-[#333]">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+              <h3 className="text-xl font-display uppercase tracking-widest text-white">Consumption Trends</h3>
+              <p className="text-gray-500 font-sans text-xs">Monthly performance over time</p>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-[#ccff00]"></div>
+                <span className="text-[10px] text-gray-400 uppercase tracking-widest">Revenue</span>
+              </div>
+            </div>
           </div>
           {chartData.length > 0 ? (
-            <div className="h-[250px] w-full">
+            <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#ccff00" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#ccff00" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="#666" 
-                    fontSize={12} 
-                    fontFamily="Space Grotesk" 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickMargin={10}
-                  />
-                  <YAxis 
-                    stroke="#666" 
-                    fontSize={12} 
-                    fontFamily="Inter" 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(value) => `₹${value}`}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
+                  <XAxis dataKey="month" stroke="#333" fontSize={10} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="earnings" 
-                    stroke="#ccff00" 
-                    strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorEarnings)" 
-                  />
+                  <Area type="monotone" dataKey="earnings" stroke="#ccff00" strokeWidth={2} fillOpacity={1} fill="url(#colorEarnings)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-[250px] w-full flex items-center justify-center border border-dashed border-[#333]">
-              <p className="text-gray-500 font-sans text-sm">Not enough data to calculate trends.</p>
+            <div className="h-[300px] flex items-center justify-center border border-dashed border-[#222]">
+              <p className="text-gray-500 text-xs font-sans">Awaiting payout data...</p>
             </div>
           )}
         </div>
 
-        {/* Platform Breakdown PieChart */}
-        <div className="lg:col-span-1 bg-[#111] border border-[#333] p-6 lg:p-8">
-          <div>
-            <h3 className="text-lg font-display uppercase tracking-widest text-white mb-1">Streams by Platform</h3>
-            <p className="text-gray-500 font-sans text-sm mb-6">Where your audience is listening</p>
+        <div className="lg:col-span-4 bg-[#111] p-6 lg:p-8 border border-[#333]">
+          <h3 className="text-xl font-display uppercase tracking-widest text-white mb-1">Top Platforms</h3>
+          <p className="text-gray-500 font-sans text-xs mb-8">Platform-wise stream distribution</p>
+          <div className="h-[250px] w-full mb-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {pieData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomPieTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          {pieData.length > 0 ? (
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="40%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomPieTooltip />} />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36} 
-                    iconType="circle"
-                    formatter={(value) => <span className="text-gray-400 font-sans text-xs ml-1">{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[250px] w-full flex flex-col items-center justify-center border border-dashed border-[#333] text-center p-6">
-              <p className="text-gray-500 font-sans text-sm mb-2">Data not available yet</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6 mb-12">
-        {/* Earnings Comparison Bar Chart */}
-        <div className="bg-[#111] border border-[#333] p-6 lg:p-8">
-          <div>
-            <h3 className="text-lg font-display uppercase tracking-widest text-white mb-1">Earnings Comparison</h3>
-            <p className="text-gray-500 font-sans text-sm mb-6">Compare current vs previous months</p>
-          </div>
-          {chartData.length > 0 ? (
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData.slice(-6)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="#666" 
-                    fontSize={12} 
-                    fontFamily="Space Grotesk" 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickMargin={10}
-                  />
-                  <YAxis 
-                    stroke="#666" 
-                    fontSize={12} 
-                    fontFamily="Inter" 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(value) => `₹${value}`}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{fill: '#222'}} />
-                  <Bar dataKey="earnings" fill="#9d4edd" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[250px] w-full flex items-center justify-center border border-dashed border-[#333]">
-              <p className="text-gray-500 font-sans text-sm">Not enough data for comparison.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-[#111] border border-[#333] p-6 lg:p-8 flex flex-col">
-          <div>
-            <h3 className="text-lg font-display uppercase tracking-widest text-white mb-1">Recent Activity</h3>
-            <p className="text-gray-500 font-sans text-sm mb-6">Latest updates from Gati</p>
-          </div>
-          
-          <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-            {recentActivity.length > 0 ? recentActivity.map((notif: any) => (
-              <div key={notif.id} className="p-4 border-l-2 border-[#ccff00] bg-[#1a1a1a]">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-white font-sans font-bold text-sm mb-1">{notif.title}</h4>
-                    <p className="text-gray-400 font-sans text-xs">{notif.message}</p>
-                  </div>
-                  <span className="text-xs text-gray-500 font-mono whitespace-nowrap ml-4">
-                    {new Date(notif.createdAt).toLocaleDateString()}
-                  </span>
+          <div className="space-y-3">
+            {pieData.slice(0, 4).map((item, i) => (
+              <div key={item.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                  <span className="text-xs font-sans text-gray-300">{item.name}</span>
                 </div>
+                <span className="text-xs font-mono text-white">{item.value.toLocaleString()}</span>
               </div>
-            )) : (
-               <div className="flex-1 flex items-center justify-center border border-dashed border-[#333]">
-                 <p className="text-gray-500 font-sans text-sm">No recent activity.</p>
-               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-[#111] border border-[#333] p-6 lg:p-8">
-        <div>
-          <h3 className="text-lg font-display uppercase tracking-widest text-white mb-6">Quick Actions</h3>
+      {/* AI Insights row */}
+      <div className="grid lg:grid-cols-2 gap-6 mb-12">
+        <div className="bg-[#111] border border-[#ccff00]/20 p-6 lg:p-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={120} className="text-[#ccff00]" /></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#ccff00]/10 rounded-full flex items-center justify-center text-[#ccff00]"><Sparkles size={20} /></div>
+                <div><h3 className="text-lg font-display uppercase tracking-widest text-[#ccff00]">Smart Insights</h3></div>
+              </div>
+            </div>
+            {aiLoading ? <AIThinking /> : aiInsights ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-black/40 p-4 rounded border border-white/5">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Streams Growth</span>
+                    <span className="text-xl font-display text-white">{aiInsights.streamsGrowth}</span>
+                  </div>
+                </div>
+                <div className="p-4 bg-[#ccff00]/5 border-l-2 border-[#ccff00]"><p className="text-white text-sm font-sans italic">"{aiInsights.performanceSummary}"</p></div>
+              </div>
+            ) : <div className="py-8 text-center text-gray-500 text-xs">Upload more to unlock AI insights.</div>}
+          </div>
         </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <Link 
-            to="/dashboard/upload" 
-            className="flex items-center justify-between bg-white text-black px-6 py-4 font-display uppercase tracking-widest font-bold hover:bg-[#ccff00] transition-colors"
-          >
-            Upload New Song <ArrowRight size={18} />
-          </Link>
-          <Link 
-            to="/dashboard/status" 
-            className="flex items-center justify-between border border-[#333] bg-[#1a1a1a] text-white px-6 py-4 font-display uppercase tracking-widest font-bold hover:border-[#ccff00] transition-colors"
-          >
-            View My Songs <ArrowRight size={18} />
-          </Link>
-          <Link 
-            to="/dashboard/withdrawals" 
-            className="flex items-center justify-between border border-[#333] bg-[#1a1a1a] text-white px-6 py-4 font-display uppercase tracking-widest font-bold hover:border-[#9d4edd] transition-colors"
-          >
-            Request Withdrawal <ArrowRight size={18} />
-          </Link>
+        <div className="bg-[#111] border border-[#9d4edd]/20 p-6 lg:p-8 relative overflow-hidden">
+          <div className="absolute bottom-0 right-0 p-4 opacity-10"><Lightbulb size={120} className="text-[#9d4edd]" /></div>
+          <div className="relative z-10">
+             <div className="flex items-center gap-3 mb-8">
+               <div className="w-10 h-10 bg-[#9d4edd]/10 rounded-full flex items-center justify-center text-[#9d4edd]"><Activity size={20} /></div>
+               <div><h3 className="text-lg font-display uppercase tracking-widest text-[#9d4edd]">Next Actions</h3></div>
+             </div>
+             {aiLoading ? <AIThinking /> : aiActions ? (
+               <ul className="space-y-3">
+                 {aiActions.actions.map((action, i) => (
+                   <li key={i} className="flex items-start gap-3 text-sm text-gray-300 font-sans"><span className="text-[#9d4edd] font-bold">{i+1}.</span> {action}</li>
+                 ))}
+               </ul>
+             ) : <div className="py-8 text-center text-gray-500 text-xs">Complete your profile for actions.</div>}
+          </div>
         </div>
       </div>
 
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="bg-[#111] border border-[#333] p-8 flex flex-col">
+          <h3 className="text-xs font-display uppercase tracking-widest text-gray-500 mb-6 font-bold">Recent Activity</h3>
+          <div className="flex-1 space-y-4">
+            {recentActivity.length > 0 ? recentActivity.map((notif: any) => (
+              <div key={notif.id} className="flex gap-4 group cursor-pointer border-b border-white/5 pb-4 last:border-0">
+                <div className="w-1 h-1 rounded-full bg-[#ccff00] mt-2"></div>
+                <div><h4 className="text-white font-sans font-bold text-xs mb-1 hover:text-[#ccff00] transition-colors">{notif.title}</h4><p className="text-gray-500 font-sans text-[10px] line-clamp-1">{notif.message}</p></div>
+              </div>
+            )) : <div className="flex-1 flex items-center justify-center border border-dashed border-white/5"><p className="text-gray-600 font-sans text-xs italic">No new notifications.</p></div>}
+          </div>
+        </div>
+
+        <div className="lg:col-span-1 bg-[#111] border border-[#333] p-8 flex flex-col">
+          <h3 className="text-xs font-display uppercase tracking-widest text-gray-500 mb-6 font-bold">Quick Navigation</h3>
+          <div className="grid grid-cols-1 gap-2">
+            <Link to="/dashboard/upload" className="p-4 border border-white/5 bg-white/5 hover:bg-[#ccff00] hover:text-black transition-all flex justify-between items-center group"><span className="text-[10px] font-display uppercase tracking-widest font-black">Release Music</span><Plus size={16} /></Link>
+            <Link to="/dashboard/status" className="p-4 border border-white/5 bg-white/5 hover:bg-white hover:text-black transition-all flex justify-between items-center group"><span className="text-[10px] font-display uppercase tracking-widest font-black">My Catalog</span><ArrowRight size={16} /></Link>
+          </div>
+        </div>
+
+        <div className="lg:col-span-1 bg-[#111] border border-[#333] p-8 flex flex-col relative overflow-hidden">
+          <div className="absolute -bottom-4 -right-4 opacity-5"><MessageSquare size={120} /></div>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-xs font-display uppercase tracking-widest text-gray-500 font-bold">Platform Feedback</h3>
+            <span className="flex h-2 w-2 rounded-full bg-[#ccff00] animate-pulse"></span>
+          </div>
+          <p className="text-[10px] text-gray-600 font-sans mb-4 uppercase tracking-widest">Share feature requests or report bugs</p>
+          
+          <form onSubmit={handleFeedbackSubmit} className="flex-1 flex flex-col gap-3 relative z-10">
+            <textarea 
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="What can we improve?..."
+              className="flex-1 bg-black border border-[#222] p-3 text-xs text-white font-sans focus:outline-none focus:border-[#ccff00] min-h-[100px] resize-none"
+              required
+            />
+            <button 
+              type="submit" 
+              disabled={submittingFeedback || feedbackSent}
+              className={`w-full font-display font-black uppercase tracking-[0.2em] text-[10px] py-3 flex items-center justify-center gap-2 transition-all ${
+                feedbackSent ? 'bg-green-500 text-white' : 'bg-[#ccff00] text-black hover:bg-white'
+              }`}
+            >
+              {submittingFeedback ? 'Sending...' : feedbackSent ? <><CheckCircle2 size={14}/> Sent</> : <><Send size={14} /> Submit Feedback</>}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
-}
-
-function IndianRupeeIcon({ opacity = 1, className = "" }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} opacity={opacity} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12"/><path d="M6 8h12"/><path d="M6 13h8.5l-1-1.5h2L14 17l-1 1.5-1-1.5-2 3c-1.5 2-4 3-6 3"/><path d="M6 13h12"/><path d="M10 8c-3 0-4 2-4 5"/></svg>
-  )
 }

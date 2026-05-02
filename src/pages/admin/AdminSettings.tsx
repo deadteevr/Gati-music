@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, ShieldAlert, CreditCard } from 'lucide-react';
-import { doc, updateDoc, collection, query, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, query, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 
 export default function AdminSettings() {
@@ -16,8 +16,12 @@ export default function AdminSettings() {
 
   const [settings, setSettings] = useState({
     whatsappOverride: '917626841258',
-    minimumWithdrawal: 1000,
-    platformNoticeText: ''
+    platformNoticeText: '',
+    withdrawalsEnabled: true,
+    uploadsEnabled: true,
+    platformFee: 0,
+    maintenanceMode: false,
+    supportEmail: 'gatimusicdistribution@gmail.com'
   });
 
   useEffect(() => {
@@ -26,16 +30,33 @@ export default function AdminSettings() {
     const unsub = onSnapshot(q, (snap) => {
       setUsers(snap.docs.filter(d => d.data().role !== 'admin').map(d => ({ uid: d.id, ...d.data() })));
     });
-    return unsub;
+
+    // Get current settings
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (snap) => {
+      if (snap.exists()) {
+        setSettings(prev => ({ ...prev, ...snap.data() }));
+      }
+    });
+
+    return () => {
+      unsub();
+      unsubSettings();
+    };
   }, []);
 
   const handleSaveSettings = async () => {
     setSaving(true);
-    // Mimic network request saving
-    setTimeout(() => {
+    try {
+      await setDoc(doc(db, 'settings', 'global'), {
+        ...settings,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      alert('Global settings updated successfully.');
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, 'settings/global');
+    } finally {
       setSaving(false);
-      alert('Global settings updated. (Note: Handled virtually in this MVP build).');
-    }, 800);
+    }
   };
 
   const handlePlanOverride = async () => {
@@ -115,6 +136,48 @@ export default function AdminSettings() {
       </div>
 
       <div className="bg-[#111] border border-[#333] p-6 lg:p-8 space-y-8">
+        {/* System Toggles */}
+        <div>
+          <h2 className="text-lg font-display uppercase tracking-widest text-[#ccff00] border-b border-[#222] pb-2 mb-6 flex items-center gap-2">
+            <ShieldAlert size={18} /> Global System Toggles
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Maintenance Mode</label>
+              <button 
+                onClick={() => setSettings({...settings, maintenanceMode: !settings.maintenanceMode})}
+                className={`py-3 px-4 text-[10px] font-display uppercase font-black tracking-widest transition-all border ${
+                  settings.maintenanceMode ? 'bg-red-500/20 border-red-500 text-red-500' : 'bg-[#222] border-[#444] text-gray-400'
+                }`}
+              >
+                {settings.maintenanceMode ? 'ACTIVE' : 'INACTIVE'}
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Allow New Uploads</label>
+              <button 
+                onClick={() => setSettings({...settings, uploadsEnabled: !settings.uploadsEnabled})}
+                className={`py-3 px-4 text-[10px] font-display uppercase font-black tracking-widest transition-all border ${
+                  settings.uploadsEnabled ? 'bg-[#ccff00] border-[#ccff00] text-black' : 'bg-red-500/20 border-red-500 text-red-500'
+                }`}
+              >
+                {settings.uploadsEnabled ? 'ENABLED' : 'DISABLED'}
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Allow Withdrawals</label>
+              <button 
+                onClick={() => setSettings({...settings, withdrawalsEnabled: !settings.withdrawalsEnabled})}
+                className={`py-3 px-4 text-[10px] font-display uppercase font-black tracking-widest transition-all border ${
+                  settings.withdrawalsEnabled ? 'bg-[#ccff00] border-[#ccff00] text-black' : 'bg-red-500/20 border-red-500 text-red-500'
+                }`}
+              >
+                {settings.withdrawalsEnabled ? 'ENABLED' : 'DISABLED'}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Core Links */}
         <div>
           <h2 className="text-lg font-display uppercase tracking-widest text-white border-b border-[#222] pb-2 mb-4">Support & Contact</h2>
@@ -129,10 +192,19 @@ export default function AdminSettings() {
               <p className="text-[10px] text-gray-500">Ties to all floating buttons across the platform.</p>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Notification Templates</label>
-              <button disabled className="bg-[#222] border border-[#444] text-gray-500 p-3 text-sm font-display text-left">
-                Edit JSON Templates (Locked)
-              </button>
+              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Support Email</label>
+              <input 
+                value={settings.supportEmail}
+                onChange={e => setSettings({...settings, supportEmail: e.target.value})}
+                className="bg-[#222] border border-[#444] text-white p-3 text-sm font-sans focus:outline-none focus:border-[#9d4edd]"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Analytics Key (Meta Pixel)</label>
+              <input 
+                placeholder="px-xxxxxxxxxxxxxxxx"
+                className="bg-[#222] border border-[#444] text-white p-3 text-sm font-mono focus:outline-none focus:border-[#9d4edd]"
+              />
             </div>
           </div>
         </div>
@@ -140,26 +212,20 @@ export default function AdminSettings() {
         {/* Configurations */}
         <div>
           <h2 className="text-lg font-display uppercase tracking-widest text-white border-b border-[#222] pb-2 mb-4">Financial Rules & Plans</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Minimum Withdrawal Limit (₹)</label>
+              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Platform Commission Fee (%)</label>
               <input 
                 type="number"
-                value={settings.minimumWithdrawal}
-                onChange={e => setSettings({...settings, minimumWithdrawal: Number(e.target.value)})}
+                value={settings.platformFee}
+                onChange={e => setSettings({...settings, platformFee: Number(e.target.value)})}
                 className="bg-[#222] border border-[#444] text-white p-3 text-sm font-mono focus:outline-none focus:border-[#9d4edd]"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Plan Pricing Editor</label>
-              <button disabled className="bg-[#222] border border-[#444] text-gray-500 p-3 text-sm font-display text-left">
-                Edit Tiers (Locked)
-              </button>
-            </div>
-            <div className="flex flex-col gap-2">
               <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Admin Account</label>
               <button disabled className="bg-[#222] border border-[#444] text-gray-500 p-3 text-sm font-display text-left">
-                Change Password (Locked)
+                Manage Sub-Admins (Locked)
               </button>
             </div>
           </div>

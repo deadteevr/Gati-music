@@ -60,6 +60,9 @@ export default function AdminRoyalties() {
       
       await addDoc(collection(db, 'royalties'), payload);
       
+      const artist = users.find(u => u.uid === formData.uid);
+      const artistEmail = artist?.email;
+
       // Auto Notification
       await addDoc(collection(db, 'notifications'), {
         uid: formData.uid,
@@ -68,6 +71,23 @@ export default function AdminRoyalties() {
         read: false,
         createdAt: new Date().toISOString()
       });
+
+      // Send Email Notification
+      if (artistEmail) {
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: artistEmail,
+              subject: `New Royalty Report: ${formData.reportMonth}`,
+              text: `Hello, a new royalty report for ${formData.reportMonth} has been uploaded to your Gati dashboard. You earned ₹${formData.amount}.\n\nLog in to view the full breakdown.`
+            })
+          });
+        } catch (emailErr) {
+          console.error("Failed to send email notification:", emailErr);
+        }
+      }
 
       alert('Royalty successfully added and artist notified.');
       setFormData({ uid: '', reportMonth: '', amount: '', reportLink: '', streamsBreakdown: '' });

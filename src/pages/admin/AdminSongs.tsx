@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, writeBatch } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { collection, query, onSnapshot, doc, writeBatch, getDoc, addDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Link } from 'react-router-dom';
 import { Search, ChevronRight, Filter, CheckSquare } from 'lucide-react';
 
@@ -70,12 +70,64 @@ export default function AdminSongs() {
     setIsUpdating(true);
     try {
       const batch = writeBatch(db);
+      const emailTasks: any[] = [];
+      const notificationTasks: any[] = [];
+
       selectedSongs.forEach(id => {
+        const songData = songs.find(s => s.id === id);
+        if (!songData) return;
+
         const ref = doc(db, 'submissions', id);
         batch.update(ref, { status: bulkStatus });
+
+        // Add Notification
+        notificationTasks.push(addDoc(collection(db, 'notifications'), {
+          uid: songData.uid,
+          title: 'Status Update',
+          message: `Your track "${songData.title}" status has been updated to: ${bulkStatus}`,
+          read: false,
+          createdAt: new Date().toISOString()
+        }));
+
+        // Collect info for email (we'll fetch emails next)
+        emailTasks.push({ uid: songData.uid, title: songData.title });
       });
+
       await batch.commit();
-      alert('Bulk update successful');
+      await Promise.all(notificationTasks);
+
+      // Fetch unique user emails and send per-user notifications
+      const uniqueUids = Array.from(new Set(emailTasks.map(e => e.uid)));
+      const userEmails: Record<string, string> = {};
+      
+      await Promise.all(uniqueUids.map(async (uid) => {
+        const uSnap = await getDoc(doc(db, 'users', uid as string));
+        if (uSnap.exists()) {
+          userEmails[uid as string] = uSnap.data()?.email;
+        }
+      }));
+
+      // Send emails
+      await Promise.all(emailTasks.map(async (task) => {
+        const email = userEmails[task.uid];
+        if (email) {
+          try {
+            await fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: email,
+                subject: `Update on your Release: ${task.title}`,
+                text: `Hello, the status of your track "${task.title}" has been updated to ${bulkStatus}. Log in to your Gati dashboard to see more details.`
+              })
+            });
+          } catch (e) {
+            console.error("Bulk email error:", e);
+          }
+        }
+      }));
+
+      alert('Bulk update successful and artists notified');
       setSelectedSongs(new Set());
       setBulkStatus('');
     } catch (error) {

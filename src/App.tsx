@@ -16,9 +16,11 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const FAQPage = lazy(() => import('./pages/FAQPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const BlogPage = lazy(() => import('./pages/BlogPage'));
+const SmartLink = lazy(() => import('./pages/artist/SmartLink'));
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,25 +47,25 @@ export default function App() {
         }
 
         // Standard user flow
-        // If not super-admin, listen normally
-        if (currentUser.email !== 'deadteevr@gmail.com') {
-          roleUnsub = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
-            if (userDoc.exists()) {
-              setRole(userDoc.data().role);
-            } else {
-              setRole('artist'); // Default
-            }
-            setLoading(false);
-          }, (error) => {
-            console.error("Error fetching user role", error);
-            // If we can't even read our own doc, we default to artist and stop loading
-            setRole('artist');
-            setLoading(false);
-          });
-        }
+        roleUnsub = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setUserData(data);
+            setRole(data.role || 'artist');
+          } else {
+            setRole('artist'); // Default
+            setUserData(null);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching user role", error);
+          setRole('artist');
+          setLoading(false);
+        });
       } else {
         if (roleUnsub) roleUnsub();
         setRole(null);
+        setUserData(null);
         setLoading(false);
       }
     });
@@ -84,8 +86,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
-          <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} /> : <Navigate to="/login" replace />} />
-          <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} /> : <Navigate to="/login" replace />} />
+          <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} userData={userData} /> : <Navigate to="/login" replace />} />
+          <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/about" element={<AboutPage />} />
@@ -94,6 +96,7 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPage />} />
+          <Route path="/release/:id" element={<SmartLink />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

@@ -9,18 +9,17 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
       await loginWithEmail(email, password);
-      // On success, App.tsx redirects based on role
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         setError("Invalid credentials. Please check your email and password.");
       } else {
-        setError(err.message || "Failed to login. Please try again.");
+        setError(err.message || "Authentication failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -42,21 +41,25 @@ export default function LoginPage() {
           GATI.
         </Link>
         
-        <h2 className="text-3xl font-display uppercase tracking-tight text-white mb-2">DASHBOARD ACCESS</h2>
+        <h2 className="text-3xl font-display uppercase tracking-tight text-white mb-2">
+          DASHBOARD ACCESS
+        </h2>
         <p className="text-gray-400 text-base mb-10 font-sans border-b border-[#333] pb-8">
           Access your artist dashboard to upload songs, track releases, and manage royalties.
         </p>
 
         <div className="mb-8 font-sans">
           <h3 className="text-xl font-display text-white mb-2 tracking-wide uppercase">🔐 LOGIN</h3>
-          <p className="text-sm text-gray-500 mb-6">Enter the credentials provided to you after purchasing a plan.</p>
+          <p className="text-sm text-gray-500 mb-6 italic">
+            Enter your credentials to continue.
+          </p>
           
           {error && <div className="bg-red-500/10 border border-red-500 text-red-500 text-sm p-4 mb-6">{error}</div>}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <input 
               type="email" 
-              placeholder="Email / Username" 
+              placeholder="Email Address" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -78,20 +81,6 @@ export default function LoginPage() {
               {loading ? "AUTHENTICATING..." : "LOGIN"}
             </button>
           </form>
-        </div>
-
-        <div className="pt-8 border-t border-[#333]">
-          <p className="text-sm text-gray-400 mb-4 font-sans">
-            Don't have dashboard access?<br/>
-            Request access after selecting a plan and completing payment.
-          </p>
-          <a 
-            href="https://wa.me/917626841258?text=Hi,%20I%20want%20to%20request%20dashboard%20access." 
-            target="_blank" rel="noopener noreferrer"
-            className="inline-block w-full border border-white text-white text-center font-display tracking-widest font-bold uppercase py-4 hover:bg-white hover:text-black transition-colors"
-          >
-            REQUEST ACCESS ON WHATSAPP
-          </a>
         </div>
 
         <div className="mt-10 pt-10 border-t border-[#333]">

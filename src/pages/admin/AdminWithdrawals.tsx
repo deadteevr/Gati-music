@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, updateDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, addDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { CheckCircle2, IndianRupee, X, Loader2 } from 'lucide-react';
 
@@ -37,6 +37,13 @@ export default function AdminWithdrawals() {
         updatedAt: new Date().toISOString()
       });
       
+      // Fetch artist email
+      let artistEmail = '';
+      const userSnap = await getDoc(doc(db, 'users', w.uid));
+      if (userSnap.exists()) {
+        artistEmail = userSnap.data()?.email;
+      }
+
       // Auto Notification
       await addDoc(collection(db, 'notifications'), {
         uid: w.uid,
@@ -45,6 +52,23 @@ export default function AdminWithdrawals() {
         read: false,
         createdAt: new Date().toISOString()
       });
+
+      // Send Email Notification
+      if (artistEmail) {
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: artistEmail,
+              subject: `Withdrawal Processed: ₹${w.amount}`,
+              text: `Hello, your withdrawal request for ₹${w.amount} has been processed.\n\nNote/TxID: ${note}\n\nLog in to your Gati dashboard for details.`
+            })
+          });
+        } catch (emailErr) {
+          console.error("Failed to send email notification:", emailErr);
+        }
+      }
 
       setProcessingId(null);
       setNote("Processed");

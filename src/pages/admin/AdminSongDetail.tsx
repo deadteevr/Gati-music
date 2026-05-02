@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw, Trash2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw, Trash2, CheckCircle, Info } from 'lucide-react';
+import { geminiService } from '../../services/geminiService';
+import { AIActionButton } from '../../components/AIComponents';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminSongDetail() {
   const { id } = useParams();
@@ -40,7 +42,7 @@ export default function AdminSongDetail() {
         setFormData(docSnap.data());
       }
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.GET, `submissions/${id}`, false);
     } finally {
       setLoading(false);
     }
@@ -111,13 +113,40 @@ export default function AdminSongDetail() {
   const handleUpdateStatus = async (newStatus: string) => {
     try {
       await updateDoc(doc(db, 'submissions', id!), { status: newStatus });
+      
+      // Fetch artist email
+      let artistEmail = '';
+      const userSnap = await getDoc(doc(db, 'users', song.uid));
+      if (userSnap.exists()) {
+        artistEmail = userSnap.data()?.email;
+      }
+
       // Notify artist transparently
       await addDoc(collection(db, 'notifications'), {
         uid: song.uid,
+        title: 'Status Update',
         message: `Your track "${song.title}" status has been updated to: ${newStatus}`,
         read: false,
         createdAt: new Date().toISOString()
       });
+
+      // Send Email Notification
+      if (artistEmail) {
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: artistEmail,
+              subject: `Update on your Release: ${song.title}`,
+              text: `Hello, the status of your track "${song.title}" has been updated to ${newStatus}. Log in to your Gati dashboard to see more details.`
+            })
+          });
+        } catch (emailErr) {
+          console.error("Failed to send email notification:", emailErr);
+        }
+      }
+
       fetchSong();
       alert(`Status updated to ${newStatus} and notification sent.`);
     } catch (e) {
@@ -142,8 +171,15 @@ export default function AdminSongDetail() {
           timestamp: new Date().toISOString()
         }
       });
+
+      // Fetch artist email
+      let artistEmail = '';
+      const userSnap = await getDoc(doc(db, 'users', song.uid));
+      if (userSnap.exists()) {
+        artistEmail = userSnap.data()?.email;
+      }
       
-      // 2. Send Notification
+      // 2. Send App Notification
       await addDoc(collection(db, 'notifications'), {
         uid: song.uid,
         title: `ACTION REQUIRED: "${song.title}"`,
@@ -151,6 +187,23 @@ export default function AdminSongDetail() {
         read: false,
         createdAt: new Date().toISOString()
       });
+
+      // 3. Send Email Notification
+      if (artistEmail) {
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: artistEmail,
+              subject: `Action Required for your Release: ${song.title}`,
+              text: `Hello, an admin has requested changes for your track "${song.title}".\n\nIssue: ${issueType}\nProblem: ${problemDesc}\nSolution: ${solutionDesc}\n\nPlease log in to your dashboard to fix these issues.`
+            })
+          });
+        } catch (emailErr) {
+          console.error("Failed to send email notification:", emailErr);
+        }
+      }
 
       setShowChangesModal(false);
       fetchSong();
@@ -176,19 +229,19 @@ export default function AdminSongDetail() {
     setAiChecking(true);
     setAiCheckReport(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Review this music metadata. Check for potential issues like capitalization errors (e.g. all caps or non-standard title casing), spelling mistakes, and inconsistent naming conventions. Provide a brief, actionable report.
       Title: "${formData.title || ''}"
       Main Artist: "${formData.mainArtist || ''}"
       Genre: "${formData.primaryGenre || ''}"
       P Line: "${formData.pLine || ''}"`;
       
+      const ai = new (await import('@google/genai')).GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt
       });
       
-      setAiCheckReport(response.text || "No report generated.");
+      setAiCheckReport(response.text || "No issues found during analysis.");
     } catch (e) {
       console.error(e);
       alert("AI Meta-Check Failed.");
@@ -200,24 +253,18 @@ export default function AdminSongDetail() {
   const handleAiGenerateNotes = async () => {
     setAiGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `You are a music distribution assistant. Format an actionable 'Changes Required' note based on the issue type: "${issueType}" and contextual notes: "${problemDesc}".
-      Rules:
-      - Explain the issue clearly in 'problemDesc'.
-      - Provide a step-by-step solution in 'solutionDesc'.
-      - Keep tone professional and helpful.
-      - Max 120 words total.
-      - Format strictly as JSON: {"problemDesc": "string", "solutionDesc": "string"}`;
+      const generated = await geminiService.generateChangesRequired(issueType, problemDesc);
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-      const jsonStr = response.text?.trim() || "{}";
-      const data = JSON.parse(jsonStr);
-      if (data.problemDesc) setProblemDesc(data.problemDesc);
-      if (data.solutionDesc) setSolutionDesc(data.solutionDesc + "\n\nOnce fixed, please resubmit your release.");
+      // Parse the generated text to extract explanation vs steps if possible, 
+      // but the persona says it returns a specific format.
+      // We can just set it to the solution and problem fields.
+      
+      const lines = generated.split('\n');
+      const changesText = lines.find(l => l.includes('Changes Required:')) ? generated.split('How to Fix:')[0].replace('Changes Required:', '').trim() : '';
+      const fixSteps = lines.find(l => l.includes('How to Fix:')) ? generated.split('How to Fix:')[1].trim() : generated;
+
+      if (changesText) setProblemDesc(changesText);
+      setSolutionDesc(fixSteps);
     } catch (e) {
       console.error(e);
       alert("AI Note Generation Failed.");
@@ -351,7 +398,26 @@ export default function AdminSongDetail() {
                   <Input name="lyricist" label="Lyricist" value={formData.lyricist} onChange={handleMetadataChange} />
                   <Input name="composer" label="Composer" value={formData.composer} onChange={handleMetadataChange} />
                   <Input name="producer" label="Producer" value={formData.producer} onChange={handleMetadataChange} />
-                  <Input name="featuredArtists" label="Featured Artists" value={formData.featuredArtists} onChange={handleMetadataChange} />
+                  <Input name="producerSpotify" label="Producer Spotify" value={formData.producerSpotify} onChange={handleMetadataChange} />
+                  
+                  <div className="col-span-1 md:col-span-2 space-y-4">
+                    <h3 className="text-[10px] font-display uppercase tracking-widest text-[#9d4edd] border-b border-[#333] pb-1">Additional Contributors</h3>
+                    {formData.additionalContributors && formData.additionalContributors.length > 0 ? (
+                      <div className="grid gap-4">
+                        {formData.additionalContributors.map((c: any, i: number) => (
+                          <div key={i} className="p-3 bg-black border border-[#333] grid grid-cols-3 gap-3">
+                            <div className="text-[10px] uppercase font-display text-gray-500">Name: <span className="text-white">{c.name}</span></div>
+                            <div className="text-[10px] uppercase font-display text-gray-500">Role: <span className="text-white">{c.role}</span></div>
+                            <div className="text-[10px] uppercase font-display text-gray-500">Spotify: <span className="text-[#ccff00] break-all">{c.spotify || 'None'}</span></div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-600 italic">No additional contributors provided.</p>
+                    )}
+                  </div>
+
+                  <Input name="featuredArtists" label="Featured Artists (Legacy String)" value={formData.featuredArtists} onChange={handleMetadataChange} />
                   <div className="col-span-1 md:col-span-2">
                     <Input name="otherCredits" label="Misc / Other Credits" value={formData.otherCredits} onChange={handleMetadataChange} />
                   </div>
@@ -365,6 +431,42 @@ export default function AdminSongDetail() {
                   </div>
                   <Input name="mainSpotifyLink" label="Artist Spotify Link" value={formData.mainSpotifyLink} onChange={handleMetadataChange} />
                   <Input name="featureSpotifyLinks" label="Featured Spotify Links" value={formData.featureSpotifyLinks} onChange={handleMetadataChange} />
+
+                  <div className="col-span-1 md:col-span-2 border-t border-[#333] pt-6 mt-2">
+                    <h3 className="text-sm font-display uppercase tracking-widest text-[#ccff00] mb-4">Official Store Links (Smart Link)</h3>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <Input 
+                        label="Spotify URL" 
+                        value={formData.storeLinks?.spotify || ''} 
+                        onChange={(e: any) => setFormData({...formData, storeLinks: {...(formData.storeLinks || {}), spotify: e.target.value}})} 
+                      />
+                      <Input 
+                        label="Apple Music URL" 
+                        value={formData.storeLinks?.appleMusic || ''} 
+                        onChange={(e: any) => setFormData({...formData, storeLinks: {...(formData.storeLinks || {}), appleMusic: e.target.value}})} 
+                      />
+                      <Input 
+                        label="YouTube Music URL" 
+                        value={formData.storeLinks?.youtubeMusic || ''} 
+                        onChange={(e: any) => setFormData({...formData, storeLinks: {...(formData.storeLinks || {}), youtubeMusic: e.target.value}})} 
+                      />
+                      <Input 
+                        label="Amazon Music URL" 
+                        value={formData.storeLinks?.amazonMusic || ''} 
+                        onChange={(e: any) => setFormData({...formData, storeLinks: {...(formData.storeLinks || {}), amazonMusic: e.target.value}})} 
+                      />
+                      <Input 
+                        label="Deezer URL" 
+                        value={formData.storeLinks?.deezer || ''} 
+                        onChange={(e: any) => setFormData({...formData, storeLinks: {...(formData.storeLinks || {}), deezer: e.target.value}})} 
+                      />
+                      <Input 
+                        label="Instagram/Facebook URL" 
+                        value={formData.storeLinks?.instagram || ''} 
+                        onChange={(e: any) => setFormData({...formData, storeLinks: {...(formData.storeLinks || {}), instagram: e.target.value}})} 
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

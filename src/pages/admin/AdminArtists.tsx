@@ -60,11 +60,108 @@ export default function AdminArtists() {
         name: newArtist.name,
         email: newArtist.email,
         role: 'artist',
-        plan: newArtist.plan,
-        planExpiry: newArtist.planExpiry,
+        subscription: {
+          planType: newArtist.plan,
+          expiryDate: newArtist.planExpiry ? newArtist.planExpiry : null,
+          status: (newArtist.plan === 'Free') ? 'Expired' : 'Active',
+          startDate: new Date().toISOString(),
+          paymentStatus: 'Manual',
+          uploadCount: 0
+        },
         createdAt: new Date().toISOString(),
         manualAccount: true
       });
+
+      // Send Welcome Email
+      try {
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+              .header { border-bottom: 2px solid #ccff00; padding-bottom: 20px; margin-bottom: 20px; }
+              .logo { color: #000; font-size: 24px; font-weight: bold; letter-spacing: -1px; text-decoration: none; }
+              .h1 { font-size: 20px; color: #000; margin-top: 0; }
+              .section-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; color: #666; letter-spacing: 1px; }
+              .bullet-list { margin-bottom: 20px; padding-left: 20px; }
+              .bullet-list li { margin-bottom: 8px; }
+              .steps { background: #f9f9f9; padding: 20px; border-radius: 4px; margin-bottom: 20px; }
+              .steps ol { padding-left: 20px; margin: 0; }
+              .steps li { margin-bottom: 10px; }
+              .cta-button { display: inline-block; background-color: #ccff00; color: #000; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; margin: 10px 0; }
+              .footer { font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px; }
+              .whatsapp-link { color: #25D366; text-decoration: none; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <span class="logo">GATI.</span>
+              </div>
+              <h1 class="h1">Hi ${newArtist.name},</h1>
+              <p>Welcome to <strong>Gati Music Distribution</strong> — we're excited to have you onboard.</p>
+              
+              <div class="section-title">What You Can Do:</div>
+              <ul class="bullet-list">
+                <li>Upload and release your music worldwide</li>
+                <li>Distribute to platforms like Spotify, Apple Music, YouTube Music</li>
+                <li>Track your streams and performance</li>
+                <li>Start building your music career</li>
+              </ul>
+              
+              <div class="section-title">Getting Started:</div>
+              <div class="steps">
+                <ol>
+                  <li>Login to your dashboard</li>
+                  <li>Upload your first track</li>
+                  <li>Add cover art & details</li>
+                  <li>Submit for release</li>
+                </ol>
+                <div style="text-align: center; margin-top: 15px;">
+                  <a href="https://www.gatimusic.in/dashboard" class="cta-button">👉 Access Dashboard</a>
+                </div>
+              </div>
+              
+              <div class="section-title">Pro Tips:</div>
+              <ul class="bullet-list">
+                <li>Use high-quality audio (WAV preferred)</li>
+                <li>Cover art should be 3000x3000px</li>
+                <li>Promote your song with reels after release</li>
+              </ul>
+              
+              <div class="section-title">Support:</div>
+              <p>Need help?</p>
+              <ul class="bullet-list">
+                <li>Reply to this email</li>
+                <li>Or contact us on <a href="https://wa.me/917626841258" class="whatsapp-link">WhatsApp</a></li>
+              </ul>
+              
+              <p>We’re here to help you grow. Let’s build your music journey together.</p>
+              
+              <div class="footer">
+                – Team Gati Music Distribution
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: newArtist.email,
+            subject: 'Welcome to Gati Music Distribution 🚀',
+            html: emailHtml
+          })
+        });
+        console.log("Welcome email sent success to", newArtist.email);
+      } catch (emailErr) {
+        console.error("Failed to send welcome email", emailErr);
+        // Don't fail the whole creation if email fails
+      }
       
       setShowAddModal(false);
       setNewArtist({ name: '', email: '', password: '', plan: 'Basic', planExpiry: '' });
@@ -133,11 +230,15 @@ export default function AdminArtists() {
                 </td>
                 <td className="px-6 py-4">
                   <span className="bg-[#222] px-2 py-1 text-xs uppercase tracking-widest text-[#9d4edd] font-bold border border-[#333]">
-                    {artist.plan || 'Free'}
+                    {artist.subscription?.planType || artist.plan || 'Free'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-xs uppercase tracking-widest text-green-400 font-bold">Active</span>
+                  <span className={`text-xs uppercase tracking-widest font-bold ${
+                    (artist.subscription?.status === 'Active') ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {artist.subscription?.status || 'Inactive'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <Link 

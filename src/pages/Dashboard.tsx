@@ -1,8 +1,12 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User } from 'lucide-react';
+import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert } from 'lucide-react';
 import { logout } from '../lib/auth';
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import { getRemainingDays, isPlanActive } from '../lib/planUtils';
 import PremiumLoader from '../components/PremiumLoader';
+import BackButton from '../components/BackButton';
 
 const ArtistHome = lazy(() => import('./artist/ArtistHome'));
 const ArtistUpload = lazy(() => import('./artist/ArtistUpload'));
@@ -11,10 +15,26 @@ const ArtistRoyalties = lazy(() => import('./artist/ArtistRoyalties'));
 const ArtistWithdrawal = lazy(() => import('./artist/ArtistWithdrawal'));
 const ArtistNotifications = lazy(() => import('./artist/ArtistNotifications'));
 const ArtistProfile = lazy(() => import('./artist/ArtistProfile'));
+const ArtistMarketing = lazy(() => import('./artist/ArtistMarketing'));
+const ArtistSmartLinks = lazy(() => import('./artist/ArtistSmartLinks'));
 
-export default function Dashboard({ user }: { user: any }) {
+export default function Dashboard({ user, userData }: { user: any, userData: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
+
+  const subscription = userData?.subscription;
+  const daysLeft = getRemainingDays(subscription?.expiryDate);
+  const isSubscribed = isPlanActive(subscription);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'notifications'), where('uid', '==', user.uid), where('read', '==', false));
+    const unsub = onSnapshot(q, (snap) => {
+      setUnreadCount(snap.size);
+    });
+    return unsub;
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -24,6 +44,8 @@ export default function Dashboard({ user }: { user: any }) {
     { name: "Overview", path: "/dashboard", icon: <Home size={20} /> },
     { name: "Upload Song", path: "/dashboard/upload", icon: <Upload size={20} /> },
     { name: "My Releases", path: "/dashboard/status", icon: <Clock size={20} /> },
+    { name: "Smart Links", path: "/dashboard/smart-links", icon: <Zap size={20} /> },
+    { name: "Marketing", path: "/dashboard/marketing", icon: <Megaphone size={20} /> },
     { name: "Notifications", path: "/dashboard/notifications", icon: <Bell size={20} /> },
     { name: "Royalties", path: "/dashboard/royalties", icon: <IndianRupee size={20} /> },
     { name: "Withdrawals", path: "/dashboard/withdrawals", icon: <IndianRupee size={20} /> },
@@ -38,7 +60,7 @@ export default function Dashboard({ user }: { user: any }) {
         <div className="flex items-center gap-4">
           <Link to="/dashboard/notifications" className="text-gray-400 hover:text-[#ccff00] transition-colors relative">
             <Bell size={20} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#ccff00]"></span>
+            {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#ccff00] shadow-[0_0_5px_#ccff00]"></span>}
           </Link>
           <div className="w-8 h-8 rounded-full bg-[#333] flex items-center justify-center text-[#ccff00] font-sans font-bold text-xs">
             {user.displayName?.charAt(0) || 'A'}
@@ -66,19 +88,82 @@ export default function Dashboard({ user }: { user: any }) {
         </div>
 
         <div className="flex-1 py-6 px-4 overflow-y-auto flex flex-col gap-2">
+          {/* Plan Info Card */}
+          <div className="mb-4 bg-[#1a1a1a] border border-[#333] p-4 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-display uppercase tracking-widest text-gray-500">My Plan</span>
+              <span className={`text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-widest rounded ${
+                isSubscribed ? 'bg-[#ccff00] text-black' : 'bg-red-500/20 text-red-500'
+              }`}>
+                {subscription?.planType || 'Free'}
+              </span>
+            </div>
+            
+            {isSubscribed ? (
+               <div className="space-y-2">
+                 <div className="flex items-center justify-between">
+                   <span className="text-[11px] text-white font-sans">Usage</span>
+                   <span className="text-[11px] text-[#ccff00] font-sans font-bold">
+                     {subscription?.planType === 'Basic' 
+                       ? `${subscription?.uploadCount || 0}/1 Songs` 
+                       : 'Unlimited'}
+                   </span>
+                 </div>
+                 <div className="flex items-center justify-between">
+                   <span className="text-[11px] text-white font-sans">Expiry Info</span>
+                   <span className="text-[11px] text-[#ccff00] font-sans font-bold">{daysLeft} Days Left</span>
+                 </div>
+                 <div className="w-full bg-[#333] h-1 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-[#ccff00] h-full" 
+                      style={{ width: `${Math.min(100, (daysLeft / 30) * 100)}%` }}
+                    ></div>
+                 </div>
+                 <p className="text-[9px] text-gray-500 font-sans uppercase">Renews on {subscription?.expiryDate?.toDate?.()?.toLocaleDateString() || 'N/A'}</p>
+               </div>
+            ) : (
+               <div className="space-y-3">
+                 <p className="text-[10px] text-red-400 font-sans leading-tight">
+                   {subscription?.status === 'Expired' || subscription?.planType === 'Free'
+                     ? 'Plan Expired/Locked. Upgrade to upload.' 
+                     : 'Your plan is inactive.'}
+                 </p>
+                 <Link 
+                   to="/pricing" 
+                   className="w-full flex items-center justify-center gap-2 py-2 bg-[#ccff00] text-black text-[10px] font-display uppercase font-black tracking-widest hover:bg-white transition-all"
+                 >
+                   <Zap size={12} /> Upgrade Now
+                 </Link>
+               </div>
+            )}
+          </div>
+
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+            const isUpload = item.path === '/dashboard/upload';
+            const isLocked = isUpload && !isSubscribed;
+
             return (
               <Link 
                 key={item.name} 
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-4 px-4 py-3 font-display uppercase tracking-widest text-sm transition-colors ${
+                to={isLocked ? '#' : item.path}
+                onClick={(e) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    alert(`Please upgrade your plan to access ${item.name}.`);
+                    return;
+                  }
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center justify-between px-4 py-3 font-display uppercase tracking-widest text-sm transition-colors group relative ${
                   isActive ? 'bg-[#333] text-[#ccff00] border-l-2 border-[#ccff00]' : 'text-gray-400 hover:text-white hover:bg-[#222]'
-                }`}
+                } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {item.icon}
-                {item.name}
+                <div className="flex items-center gap-4">
+                  {item.icon}
+                  {item.name}
+                </div>
+                {isLocked && <ShieldAlert size={14} className="text-red-500" />}
               </Link>
             )
           })}
@@ -109,7 +194,7 @@ export default function Dashboard({ user }: { user: any }) {
         <header className="hidden md:flex items-center justify-end p-6 border-b border-[#333] bg-[#050505] z-10 gap-6">
           <Link to="/dashboard/notifications" className="text-gray-400 hover:text-[#ccff00] transition-colors relative">
             <Bell size={24} />
-            <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-[#ccff00]"></span>
+            {unreadCount > 0 && <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-[#ccff00] shadow-[0_0_5px_#ccff00]"></span>}
           </Link>
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -130,15 +215,18 @@ export default function Dashboard({ user }: { user: any }) {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10 pb-24">
+          <BackButton />
           <Suspense fallback={<PremiumLoader />}>
             <Routes>
-              <Route path="/" element={<ArtistHome user={user} />} />
-              <Route path="/upload" element={<ArtistUpload user={user} />} />
-              <Route path="/status" element={<ArtistStatus user={user} />} />
-              <Route path="/royalties" element={<ArtistRoyalties user={user} />} />
-              <Route path="/withdrawals" element={<ArtistWithdrawal user={user} />} />
-              <Route path="/notifications" element={<ArtistNotifications user={user} />} />
-              <Route path="/profile" element={<ArtistProfile user={user} />} />
+              <Route path="/" element={<ArtistHome user={user} userData={userData} />} />
+              <Route path="/upload" element={<ArtistUpload user={user} userData={userData} />} />
+              <Route path="/status" element={<ArtistStatus user={user} userData={userData} />} />
+              <Route path="/smart-links" element={<ArtistSmartLinks user={user} userData={userData} />} />
+              <Route path="/royalties" element={<ArtistRoyalties user={user} userData={userData} />} />
+              <Route path="/withdrawals" element={<ArtistWithdrawal user={user} userData={userData} />} />
+              <Route path="/notifications" element={<ArtistNotifications user={user} userData={userData} />} />
+              <Route path="/marketing" element={<ArtistMarketing user={user} userData={userData} />} />
+              <Route path="/profile" element={<ArtistProfile user={user} userData={userData} />} />
             </Routes>
           </Suspense>
         </div>

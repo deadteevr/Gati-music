@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import nodemailer from "nodemailer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +11,53 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  app.use(express.json());
+
+  // Email Transport Setup
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT || "465"),
+    secure: process.env.EMAIL_PORT === "465",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // API Route for sending notifications
+  app.post("/api/send-email", async (req, res) => {
+    const { to, subject, html, text } = req.body;
+
+    if (!to || !subject || (!html && !text)) {
+      return res.status(400).json({ error: "Missing required fields: to, subject, and either html or text" });
+    }
+
+    try {
+      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || '"Gati Music Distribution" <gatimusicdistribution@gmail.com>',
+          to,
+          subject,
+          text,
+          html,
+        });
+        console.log(`Email sent to ${to}: ${subject}`);
+        res.json({ success: true, message: "Email sent successfully" });
+      } else {
+        console.warn("SMTP credentials not configured. Logging email content instead:");
+        console.log("-------------------");
+        console.log(`To: ${to}`);
+        console.log(`Subject: ${subject}`);
+        console.log(`Content: ${text || html}`);
+        console.log("-------------------");
+        res.json({ success: true, message: "Email logged to console (SMTP not configured)" });
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ error: "Failed to send email" });
+    }
+  });
 
   // Serve static files from the public directory explicitly
   const publicPath = path.join(process.cwd(), "public");

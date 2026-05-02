@@ -1,8 +1,11 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { useState, lazy, Suspense } from 'react';
-import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X, CheckSquare } from 'lucide-react';
+import { useState, lazy, Suspense, useEffect } from 'react';
+import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X, CheckSquare, Zap, Link as LinkIcon } from 'lucide-react';
 import { logout } from '../lib/auth';
 import PremiumLoader from '../components/PremiumLoader';
+import BackButton from '../components/BackButton';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const AdminHome = lazy(() => import('./admin/AdminHome'));
 const AdminArtists = lazy(() => import('./admin/AdminArtists'));
@@ -15,10 +18,22 @@ const AdminRoyalties = lazy(() => import('./admin/AdminRoyalties'));
 const AdminWithdrawals = lazy(() => import('./admin/AdminWithdrawals'));
 const AdminSettings = lazy(() => import('./admin/AdminSettings'));
 const AdminTasks = lazy(() => import('./admin/AdminTasks'));
+const AdminMarketing = lazy(() => import('./admin/AdminMarketing'));
+const AdminSubscriptions = lazy(() => import('./admin/AdminSubscriptions'));
+const AdminSmartLinks = lazy(() => import('./admin/AdminSmartLinks'));
 
-export default function AdminPanel({ user }: { user: any }) {
+export default function AdminPanel({ user, userData }: { user: any, userData: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hasNewFeedback, setHasNewFeedback] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    const q = query(collection(db, 'feedback'), where('status', '==', 'new'));
+    const unsub = onSnapshot(q, (snap) => {
+      setHasNewFeedback(!snap.empty);
+    });
+    return unsub;
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -27,10 +42,22 @@ export default function AdminPanel({ user }: { user: any }) {
   const navItems = [
     { name: "Dashboard", path: "/admin", icon: <Home size={18} /> },
     { name: "Artists", path: "/admin/artists", icon: <Users size={18} /> },
+    { name: "Subscriptions", path: "/admin/subscriptions", icon: <Zap size={18} /> },
+    { name: "Smart Links", path: "/admin/smart-links", icon: <LinkIcon size={18} /> },
     { name: "Songs", path: "/admin/songs", icon: <Music size={18} /> },
     { name: "Tasks", path: "/admin/tasks", icon: <CheckSquare size={18} /> },
     { name: "Bulk Streams", path: "/admin/streams", icon: <Database size={18} /> },
-    { name: "Notifications", path: "/admin/notifications", icon: <Bell size={18} /> },
+    { name: "Marketing", path: "/admin/marketing", icon: <Megaphone size={18} /> },
+    { 
+      name: "Notifications", 
+      path: "/admin/notifications", 
+      icon: (
+        <div className="relative">
+          <Bell size={18} />
+          {hasNewFeedback && <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#ccff00] rounded-full shadow-[0_0_5px_#ccff00]" />}
+        </div>
+      ) 
+    },
     { name: "Royalties", path: "/admin/royalties", icon: <IndianRupee size={18} /> },
     { name: "Withdrawals", path: "/admin/withdrawals", icon: <CreditCard size={18} /> },
     { name: "Settings", path: "/admin/settings", icon: <Settings size={18} /> },
@@ -97,11 +124,14 @@ export default function AdminPanel({ user }: { user: any }) {
       {/* Main Content */}
       <main className="flex-1 flex flex-col max-h-screen overflow-hidden bg-[#0a0a0a]">
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <BackButton fallbackPath="/admin" />
           <Suspense fallback={<PremiumLoader />}>
             <Routes>
               <Route path="/" element={<AdminHome />} />
               <Route path="/artists" element={<AdminArtists />} />
               <Route path="/artists/:uid" element={<AdminArtistProfile />} />
+              <Route path="/subscriptions" element={<AdminSubscriptions />} />
+              <Route path="/smart-links" element={<AdminSmartLinks />} />
               <Route path="/songs" element={<AdminSongs />} />
               <Route path="/songs/:id" element={<AdminSongDetail />} />
               <Route path="/tasks" element={<AdminTasks />} />
@@ -109,6 +139,7 @@ export default function AdminPanel({ user }: { user: any }) {
               <Route path="/notifications" element={<AdminNotifications />} />
               <Route path="/royalties" element={<AdminRoyalties />} />
               <Route path="/withdrawals" element={<AdminWithdrawals />} />
+              <Route path="/marketing" element={<AdminMarketing />} />
               <Route path="/settings" element={<AdminSettings />} />
             </Routes>
           </Suspense>

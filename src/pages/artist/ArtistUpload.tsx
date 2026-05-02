@@ -1,13 +1,24 @@
-import { useState } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage, handleFirestoreError, OperationType } from '../../firebase';
+import { db, storage, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, CheckCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert } from 'lucide-react';
+import { geminiService } from '../../services/geminiService';
+import { AIActionButton } from '../../components/AIComponents';
+import PremiumLoader from '../../components/PremiumLoader';
 
-export default function ArtistUpload({ user }: { user: any }) {
+import { getRemainingDays, isPlanActive } from '../../lib/planUtils';
+
+export default function ArtistUpload({ user, userData }: { user: any, userData: any }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
+  
+  const isSubscribed = isPlanActive(userData?.subscription);
+  const daysLeft = getRemainingDays(userData?.subscription?.expiryDate);
+
+  const [uploadMessage, setUploadMessage] = useState("");
   const [error, setError] = useState("");
   const [audioError, setAudioError] = useState("");
   const [coverError, setCoverError] = useState("");
@@ -22,6 +33,7 @@ export default function ArtistUpload({ user }: { user: any }) {
     cLine: "",
     lyricist: "",
     producer: "",
+    producerSpotify: "",
     otherCredits: "",
     scheduleDate: "",
     mainSpotifyLink: "",
@@ -31,7 +43,13 @@ export default function ArtistUpload({ user }: { user: any }) {
     coverUrl: ""
   });
 
-  const [additionalArtists, setAdditionalArtists] = useState<string[]>([]);
+  interface Contributor {
+    name: string;
+    role: string;
+    spotify: string;
+  }
+
+  const [additionalArtists, setAdditionalArtists] = useState<Contributor[]>([]);
   const [audioInputType, setAudioInputType] = useState('file'); // 'file' or 'link'
   const [coverInputType, setCoverInputType] = useState('file'); // 'file' or 'link'
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -41,17 +59,66 @@ export default function ArtistUpload({ user }: { user: any }) {
   const [audioStatus, setAudioStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [coverStatus, setCoverStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
 
+  const [processingAI, setProcessingAI] = useState(false);
+  const [rawCredits, setRawCredits] = useState("");
+  const [showAIInput, setShowAIInput] = useState(false);
+
+  useEffect(() => {
+    if (!loading) return;
+
+    if (audioStatus === 'uploading' || coverStatus === 'uploading') {
+      setUploadMessage("Uploading assets...");
+      const parts = [];
+      if (audioProgress >= 0) parts.push(audioProgress);
+      if (coverProgress >= 0) parts.push(coverProgress);
+      
+      if (parts.length > 0) {
+        const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+        setUploadProgress(avg);
+      }
+    } else if (audioStatus === 'success' && coverStatus === 'success') {
+      setUploadProgress(95);
+      setUploadMessage("Finalizing submission...");
+    } else if (audioStatus === 'error' || coverStatus === 'error') {
+      setUploadMessage("Upload failed.");
+      setUploadProgress(undefined);
+    }
+  }, [audioProgress, coverProgress, audioStatus, coverStatus, loading]);
+
+  const handleMagicFill = async () => {
+    if (!rawCredits.trim()) return;
+    setProcessingAI(true);
+    try {
+      const formatted = await geminiService.formatCredits(rawCredits);
+      setFormData(prev => ({
+        ...prev,
+        mainArtist: formatted.artist || prev.mainArtist,
+        featuringArtists: formatted.featuring || prev.featuringArtists,
+        producer: formatted.producer || prev.producer,
+        lyricist: formatted.lyricist || prev.lyricist,
+        otherCredits: formatted.mixing || formatted.mastering 
+          ? `Mixing: ${formatted.mixing || 'N/A'}, Mastering: ${formatted.mastering || 'N/A'}`
+          : prev.otherCredits
+      }));
+      setShowAIInput(false);
+    } catch (err) {
+      console.error("AI Formatting error:", err);
+    } finally {
+      setProcessingAI(false);
+    }
+  };
+
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const addArtistField = () => {
-    setAdditionalArtists([...additionalArtists, ""]);
+    setAdditionalArtists([...additionalArtists, { name: "", role: "Singer", spotify: "" }]);
   };
 
-  const updateAdditionalArtist = (index: number, value: string) => {
+  const updateAdditionalArtist = (index: number, field: keyof Contributor, value: string) => {
     const newArtists = [...additionalArtists];
-    newArtists[index] = value;
+    newArtists[index] = { ...newArtists[index], [field]: value };
     setAdditionalArtists(newArtists);
   };
 
@@ -86,22 +153,40 @@ export default function ArtistUpload({ user }: { user: any }) {
     return /^https?:\/\/.+/.test(url.trim());
   };
 
+  const isValidSpotifyUrl = (url: string) => {
+    if (!url.trim()) return true; // Optional allows empty
+    return /^https?:\/\/(open|play)\.spotify\.com\/(artist|track|album|playlist)\/.+/.test(url.trim().split('?')[0]);
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
+    setUploadProgress(0);
+    setUploadMessage("Validating form...");
     setError("");
     setAudioProgress(-1);
     setCoverProgress(-1);
+    
+    console.log("Upload started...");
 
     try {
-      if (!formData.title || !formData.mainArtist || !formData.pLine || !formData.cLine || !formData.lyricist) {
-        throw new Error("Please fill all required text fields.");
+      if (!formData.title || !formData.mainArtist || !formData.pLine || !formData.cLine) {
+        throw new Error("Please fill all required text fields (Title, Artist, P Line, C Line).");
       }
+
+      // Validate Spotify Links
+      if (formData.mainSpotifyLink && !isValidSpotifyUrl(formData.mainSpotifyLink)) throw new Error("Invalid Main Artist Spotify Link.");
+      if (formData.producerSpotify && !isValidSpotifyUrl(formData.producerSpotify)) throw new Error("Invalid Producer Spotify Link.");
+      
+      additionalArtists.forEach((a, i) => {
+        if (!a.name.trim()) throw new Error(`Artist name required for entry #${i + 1}`);
+        if (!a.role.trim()) throw new Error(`Role required for artist entry #${i + 1}`);
+        if (a.spotify && !isValidSpotifyUrl(a.spotify)) throw new Error(`Invalid Spotify link for artist ${a.name}`);
+      });
 
       let finalAudioUrl = formData.audioUrl;
       let finalCoverUrl = formData.coverUrl;
 
-      // Validate Audio
       if (audioInputType === 'file') {
         if (!audioFile) throw new Error("Please upload an audio file or provide a link.");
         validateAudioFile(audioFile);
@@ -117,70 +202,112 @@ export default function ArtistUpload({ user }: { user: any }) {
         if (!isValidUrl(finalCoverUrl)) throw new Error("Please provide a valid, publicly accessible URL for your cover artwork.");
       }
 
-      // Uploads (Parallel)
-      const uploadPromises: Promise<void>[] = [];
+      // Upload Function (Cloudinary vs Firebase)
+      const uploadToCloudinary = async (file: File, type: 'audio' | 'image', setProgress: (p: number) => void, setStatus: (s: any) => void) => {
+        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+        const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-      if (audioInputType === 'file' && audioFile) {
-        setAudioProgress(0);
-        setAudioStatus('uploading');
-        const audioRef = ref(storage, `uploads/${user.uid}/${Date.now()}_audio_${audioFile.name}`);
-        const uploadTask = uploadBytesResumable(audioRef, audioFile);
-        uploadPromises.push(new Promise((resolve, reject) => {
+        if (!cloudName || !uploadPreset) {
+          throw new Error("Cloudinary not configured. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.");
+        }
+
+        setStatus('uploading');
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
+        formData.append('folder', `gati/${auth.currentUser?.uid}`);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`);
+
+        return new Promise<string>((resolve, reject) => {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const percent = (e.loaded / e.total) * 100;
+              setProgress(percent);
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              const res = JSON.parse(xhr.responseText);
+              setStatus('success');
+              resolve(res.secure_url);
+            } else {
+              setStatus('error');
+              reject(new Error(`Cloudinary Error: ${xhr.responseText}`));
+            }
+          };
+
+          xhr.onerror = () => {
+            setStatus('error');
+            reject(new Error('Network Error during Cloudinary upload'));
+          };
+
+          xhr.send(formData);
+        });
+      };
+
+      const uploadToFirebase = (file: File, path: string, setProgress: (p: number) => void, setStatus: (s: any) => void) => {
+        const storageRef = ref(storage, path);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        setStatus('uploading');
+
+        return new Promise<string>((resolve, reject) => {
           uploadTask.on('state_changed',
-            (snapshot) => setAudioProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setProgress(progress);
+            },
             (error) => {
-              setAudioStatus('error');
+              setStatus('error');
               reject(error);
             },
             async () => {
-              finalAudioUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              setAudioStatus('success');
-              setAudioProgress(100);
-              resolve();
+              const url = await getDownloadURL(uploadTask.snapshot.ref);
+              setStatus('success');
+              resolve(url);
             }
           );
-        }));
+        });
+      };
+
+      // Execute Uploads
+      const useCloudinary = !!import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+
+      if (audioInputType === 'file' && audioFile) {
+        if (useCloudinary) {
+          finalAudioUrl = await uploadToCloudinary(audioFile, 'audio', setAudioProgress, setAudioStatus);
+        } else {
+          const path = `uploads/${user.uid}/audio_${Date.now()}_${audioFile.name.replace(/\s+/g, '_')}`;
+          finalAudioUrl = await uploadToFirebase(audioFile, path, setAudioProgress, setAudioStatus);
+        }
       }
 
       if (coverInputType === 'file' && coverFile) {
-        setCoverProgress(0);
-        setCoverStatus('uploading');
-        const coverRef = ref(storage, `uploads/${user.uid}/${Date.now()}_cover_${coverFile.name}`);
-        const uploadTask = uploadBytesResumable(coverRef, coverFile);
-        uploadPromises.push(new Promise((resolve, reject) => {
-          uploadTask.on('state_changed',
-            (snapshot) => setCoverProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => {
-              setCoverStatus('error');
-              reject(error);
-            },
-            async () => {
-              finalCoverUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              setCoverStatus('success');
-              setCoverProgress(100);
-              resolve();
-            }
-          );
-        }));
+        if (useCloudinary) {
+          finalCoverUrl = await uploadToCloudinary(coverFile, 'image', setCoverProgress, setCoverStatus);
+        } else {
+          const path = `uploads/${user.uid}/cover_${Date.now()}_${coverFile.name.replace(/\s+/g, '_')}`;
+          finalCoverUrl = await uploadToFirebase(coverFile, path, setCoverProgress, setCoverStatus);
+        }
       }
 
-      await Promise.all(uploadPromises);
-
-      const combinedFeatureArtists = [
-        ...formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
-        ...additionalArtists.map(s => s.trim()).filter(Boolean)
-      ];
+      
+      console.log("All uploads finished. Saving metadata to Firestore...");
 
       await addDoc(collection(db, 'submissions'), {
         uid: user.uid,
         title: formData.title,
         mainArtist: formData.mainArtist,
-        featuringArtists: combinedFeatureArtists,
+        featuringArtists: formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
+        additionalContributors: additionalArtists,
         labelName: formData.labelName,
         pLine: formData.pLine,
         cLine: formData.cLine,
         lyricist: formData.lyricist,
         producer: formData.producer,
+        producerSpotify: formData.producerSpotify,
         otherCredits: formData.otherCredits,
         scheduleDate: formData.scheduleDate,
         mainSpotifyLink: formData.mainSpotifyLink,
@@ -191,34 +318,78 @@ export default function ArtistUpload({ user }: { user: any }) {
         status: "Reviewing",
         createdAt: new Date().toISOString(),
       });
+
+      // Update User Upload Count & Expiry Logic
+      const newUploadCount = (userData.subscription?.uploadCount || 0) + 1;
+      const isBasic = userData.subscription?.planType === 'Basic';
+      const shouldExpire = isBasic && newUploadCount >= 1;
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        'subscription.uploadCount': newUploadCount,
+        'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
+      });
+
+      // Log Activity
+      await addDoc(collection(db, 'activity_logs'), {
+        uid: user.uid,
+        type: 'song_uploaded',
+        message: `Uploaded new release: ${formData.title}`,
+        timestamp: new Date().toISOString()
+      });
       
+      console.log("Submission successful!");
       // Show Success screen
       setSuccess(true);
       
     } catch (err: any) {
-      if (err.code?.startsWith('storage/') || err.message?.includes("storage/")) {
-        setError("UPLOAD_ERROR");
-      } else if (err.message?.includes('Missing or insufficient permissions') && !err.message?.includes("storage/")) {
-        handleFirestoreError(err, OperationType.CREATE, 'submissions');
+      handleFirestoreError(err, OperationType.CREATE, 'submissions', false);
+      
+      console.error("Submission error:", err);
+      if (err.code?.startsWith('storage/')) {
+        setError("Firebase Storage Error: " + err.message);
+      } else if (err.message?.includes('Missing or insufficient permissions')) {
+        setError("Permission Denied: Ensure you are logged in and have permission to upload.");
       } else {
-        setError(err.message || "Failed to submit release.");
+        try {
+          const parsed = JSON.parse(err.message);
+          setError(parsed.userFriendlyMessage || "Failed to submit release.");
+        } catch {
+          setError(err.message || "Failed to submit release.");
+        }
       }
     } finally {
       setLoading(false);
-      setAudioProgress(-1);
-      setCoverProgress(-1);
+      // Don't reset progress here so user can see it's 100% on success/error screens if needed
+      // Or at least delay it.
     }
+  };
+
+  const getButtonText = () => {
+    if (!loading) return "Submit Release";
+    if (audioStatus === 'uploading' || coverStatus === 'uploading') {
+      const activeProgress = [];
+      if (audioProgress >= 0) activeProgress.push(audioProgress);
+      if (coverProgress >= 0) activeProgress.push(coverProgress);
+      const avgProgress = activeProgress.length > 0 
+        ? Math.round(activeProgress.reduce((a, b) => a + b, 0) / activeProgress.length) 
+        : 0;
+      return `Uploading (${avgProgress}%)`;
+    }
+    if (audioStatus === 'success' || coverStatus === 'success') {
+      return "Processing...";
+    }
+    return "Submitting...";
   };
 
   if (success) {
     return (
       <div className="max-w-3xl pb-20 flex flex-col items-center justify-center min-h-[60vh] text-center">
         <div className="w-20 h-20 bg-[#ccff00]/20 text-[#ccff00] rounded-full flex items-center justify-center mb-6">
-          <CheckCircle size={40} />
+          <CheckCircle2 size={40} />
         </div>
         <h1 className="text-3xl lg:text-4xl font-display uppercase tracking-tighter mb-4 text-white">Release Submitted!</h1>
         <p className="text-gray-400 font-sans text-lg mb-8 max-w-lg">
-          Your song has been submitted for review, It usually takes 6-8 hours to be reviewed.
+          Your song has been submitted for review. It usually takes 6-8 hours to be reviewed and processed.
         </p>
         <button 
           onClick={() => navigate('/dashboard/status')}
@@ -230,32 +401,74 @@ export default function ArtistUpload({ user }: { user: any }) {
     );
   }
 
+  if (!isSubscribed) {
+    return (
+      <div className="max-w-3xl pb-20 flex flex-col items-center justify-center min-h-[60vh] text-center bg-[#111] border border-[#333] p-10">
+        <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6 border border-red-500/20">
+          <ShieldAlert size={40} />
+        </div>
+        <h1 className="text-3xl font-display uppercase tracking-tighter mb-4 text-white">Uploads Locked</h1>
+        <p className="text-gray-400 font-sans text-lg mb-8 max-w-lg">
+          {userData?.subscription?.status === 'Expired' 
+            ? "Your subscription has expired. Please renew to continue releasing music."
+            : "You are currently on the Free plan. Upgrade to a distribution plan to upload your tracks to streaming platforms."
+          }
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button 
+            onClick={() => navigate('/pricing')}
+            className="bg-[#ccff00] text-black font-display font-bold px-10 py-4 uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
+          >
+            Check Plans
+          </button>
+          <a 
+            href="https://wa.me/917626841258?text=Hi,%20I%20want%20to%20upgrade%20my%20Gati%20plan." 
+            target="_blank" rel="noopener noreferrer"
+            className="border border-white text-white font-display font-bold px-10 py-4 uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+          >
+            Contact Support
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl">
+      {loading && <PremiumLoader progress={uploadProgress} message={uploadMessage} />}
       <div className="mb-10">
         <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">Upload New Release</h1>
         <p className="text-gray-400">Fill details carefully to avoid delays.</p>
       </div>
 
-      {error === "UPLOAD_ERROR" ? (
+      {error && (
         <div className="bg-red-500/10 border border-red-500 p-6 mb-8">
-          <h3 className="text-red-500 font-display font-bold uppercase tracking-widest mb-2 text-lg">Upload Failed</h3>
+          <h3 className="text-red-500 font-display font-bold uppercase tracking-widest mb-2 text-lg">Submission Issue</h3>
           <p className="text-gray-300 font-sans text-sm mb-6">
-            There was a problem uploading your audio or image files to the server. This can happen due to restricted file size policies or network errors.
+            {error.includes("Storage") ? 
+              "There was a problem uploading your files. This often happens if the storage permissions are not set to allow uploads, or if your network is unstable." : 
+              error}
           </p>
-          <a 
-            href="https://wa.me/917626841258?text=Hi,%20I%20am%20getting%20an%20error%20while%20uploading%20my%20files%20on%20the%20Gati%20Dashboard." 
-            target="_blank" rel="noopener noreferrer"
-            className="inline-block bg-[#ccff00] text-black font-display font-bold tracking-widest uppercase px-6 py-3 text-sm hover:bg-white transition-colors"
-          >
-            Message Support on WhatsApp
-          </a>
+          <div className="flex flex-wrap gap-4">
+            <button 
+              onClick={() => setError("")}
+              className="bg-white/10 text-white font-display font-bold tracking-widest uppercase px-6 py-3 text-sm hover:bg-white/20 transition-colors"
+            >
+              Try Again
+            </button>
+            <a 
+              href="https://wa.me/917626841258?text=Hi,%20I%20am%20getting%20an%20error%20while%20uploading%20my%20files%20on%20the%20Gati%20Dashboard." 
+              target="_blank" rel="noopener noreferrer"
+              className="inline-block bg-[#ccff00] text-black font-display font-bold tracking-widest uppercase px-6 py-3 text-sm hover:bg-white transition-colors"
+            >
+              Support on WhatsApp
+            </a>
+          </div>
         </div>
-      ) : error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 mb-8 font-sans">{error}</div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8 pb-20">
+        {/* ... Sections A to D remain same ... */}
         <div className="bg-[#111] p-6 sm:p-8 border border-[#333]">
           <div className="mb-6 border-b border-[#333] pb-4">
             <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section A: Basic Info</h2>
@@ -264,41 +477,138 @@ export default function ArtistUpload({ user }: { user: any }) {
           <div className="grid md:grid-cols-2 gap-6">
             <InputField label="Song Title *" name="title" value={formData.title} onChange={handleChange} required />
             <InputField label="Artist Name *" name="mainArtist" value={formData.mainArtist} onChange={handleChange} required />
-            <div className="md:col-span-2 space-y-4">
-              <label className="text-xs font-display uppercase tracking-widest text-gray-500">Additional Artists (Optional)</label>
-              {additionalArtists.map((artist, index) => (
-                <div key={index} className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={artist}
-                    onChange={(e) => updateAdditionalArtist(index, e.target.value)}
-                    placeholder="Enter artist name"
-                    className="flex-1 bg-transparent border-b border-[#333] py-2 text-white font-sans focus:outline-none focus:border-white transition-colors"
-                  />
-                  <button type="button" onClick={() => removeAdditionalArtist(index)} className="text-gray-500 hover:text-red-500 transition-colors p-2">
-                    <X size={18} />
-                  </button>
+            <div className="md:col-span-2 space-y-6">
+              <label className="text-xs font-display uppercase tracking-widest text-gray-500 block border-b border-[#222] pb-2">Additional Contributors (Optional)</label>
+              
+              {additionalArtists.length > 0 && (
+                <div className="space-y-6">
+                  {additionalArtists.map((artist, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-[#222] bg-black/30 relative pt-10 md:pt-4">
+                      <button 
+                        type="button" 
+                        onClick={() => removeAdditionalArtist(index)} 
+                        className="absolute top-2 right-2 text-gray-600 hover:text-red-500 transition-colors p-2 md:bg-transparent"
+                      >
+                        <X size={16} />
+                      </button>
+                      
+                      <div className="flex flex-col">
+                        <label className="text-[10px] font-display uppercase tracking-widest text-gray-600 mb-2">Artist Name *</label>
+                        <input
+                          type="text"
+                          value={artist.name}
+                          onChange={(e) => updateAdditionalArtist(index, 'name', e.target.value)}
+                          placeholder="e.g. Divine"
+                          className="bg-transparent border-b border-[#333] py-2 text-white font-sans text-sm focus:outline-none focus:border-[#ccff00] transition-colors"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="flex flex-col">
+                        <label className="text-[10px] font-display uppercase tracking-widest text-gray-600 mb-2">Role / Credit *</label>
+                        <select
+                          value={artist.role}
+                          onChange={(e) => updateAdditionalArtist(index, 'role', e.target.value)}
+                          className="bg-black border-b border-[#333] py-2 text-white font-sans text-sm focus:outline-none focus:border-[#ccff00] transition-colors cursor-pointer"
+                        >
+                          <option value="Singer">Singer</option>
+                          <option value="Rapper">Rapper</option>
+                          <option value="Composer">Composer</option>
+                          <option value="Lyricist">Lyricist</option>
+                          <option value="Feature">Feature</option>
+                          <option value="Mixing Engineer">Mixing Engineer</option>
+                          <option value="Mastering Engineer">Mastering Engineer</option>
+                          <option value="Guitarist">Guitarist</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <label className="text-[10px] font-display uppercase tracking-widest text-gray-600 mb-2">Spotify Link (Optional)</label>
+                        <input
+                          type="url"
+                          value={artist.spotify}
+                          onChange={(e) => updateAdditionalArtist(index, 'spotify', e.target.value)}
+                          placeholder="https://open.spotify.com/..."
+                          className="bg-transparent border-b border-[#333] py-2 text-white font-sans text-sm focus:outline-none focus:border-[#ccff00] transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
               <button 
                 type="button" 
                 onClick={addArtistField}
-                className="flex items-center gap-2 text-[#ccff00] text-xs font-display uppercase tracking-widest font-bold hover:text-white transition-colors"
+                className="flex items-center gap-2 text-[#ccff00] text-[10px] font-display uppercase tracking-widest font-black border border-[#ccff00]/30 px-4 py-2 hover:bg-[#ccff00] hover:text-black transition-all"
               >
-                <Plus size={16} /> Add More Artists
+                <Plus size={14} /> Add Artist / Contributor
               </button>
             </div>
           </div>
         </div>
 
         <div className="bg-[#111] p-6 sm:p-8 border border-[#333]">
-          <div className="mb-6 border-b border-[#333] pb-4">
-            <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section B: Credits</h2>
-            <p className="text-xs text-gray-500 font-sans">Credit the people behind your music. Required by all major streaming services.</p>
+          <div className="mb-6 border-b border-[#333] pb-4 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section B: Credits</h2>
+              <p className="text-xs text-gray-500 font-sans">Credit the people behind your music. Required by all major streaming services.</p>
+            </div>
+            <AIActionButton 
+              text="Magic Format" 
+              loading={processingAI} 
+              onClick={() => setShowAIInput(!showAIInput)} 
+            />
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+
+          {showAIInput && (
+            <div className="mb-8 p-6 bg-black border border-[#ccff00]/20 rounded-lg animate-in fade-in slide-in-from-top-4">
+              <h3 className="text-[#ccff00] text-xs font-display uppercase tracking-widest font-bold mb-4 flex items-center gap-2">
+                <Sparkles size={14} /> Paste Metadata for Magic Fill
+              </h3>
+              <textarea
+                value={rawCredits}
+                onChange={(e) => setRawCredits(e.target.value)}
+                placeholder="Example: Produced by DJ Snake, Lyrics by Justin, Mixed by Serban Ghenea..."
+                className="w-full bg-[#0a0a0a] border border-[#333] p-4 text-white font-sans text-sm focus:border-[#ccff00] transition-all min-h-[100px] outline-none mb-4"
+              />
+              <div className="flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowAIInput(false)}
+                  className="text-[10px] font-display uppercase tracking-widest text-gray-500 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleMagicFill}
+                  disabled={processingAI || !rawCredits.trim()}
+                  className="bg-[#ccff00] text-black px-4 py-2 font-display uppercase tracking-widest text-[10px] font-black hover:bg-white transition-all disabled:opacity-50"
+                >
+                  {processingAI ? "Extracting..." : "Apply Metadata"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-x-6 gap-y-8">
             <InputField label="Label Name (Optional)" name="labelName" value={formData.labelName} onChange={handleChange} />
-            <InputField label="Producer (Optional)" name="producer" value={formData.producer} onChange={handleChange} />
+            
+            <div className="space-y-4">
+              <InputField label="Producer (Optional)" name="producer" value={formData.producer} onChange={handleChange} />
+              {formData.producer && (
+                <div className="animate-in fade-in slide-in-from-top-2">
+                  <InputField 
+                    label="Producer Spotify Link (Optional)" 
+                    name="producerSpotify" 
+                    value={formData.producerSpotify} 
+                    onChange={handleChange}
+                    placeholder="https://open.spotify.com/..."
+                  />
+                </div>
+              )}
+            </div>
             
             <InputField 
               label="P Line (Sound Recording) *" 
@@ -588,7 +898,7 @@ export default function ArtistUpload({ user }: { user: any }) {
           disabled={loading}
           className="w-full bg-white text-black font-display font-bold py-5 uppercase tracking-widest text-lg hover:bg-[#ccff00] transition-colors disabled:opacity-50"
         >
-          {loading ? "Submitting..." : "Submit Release"}
+          {getButtonText()}
         </button>
       </form>
     </div>

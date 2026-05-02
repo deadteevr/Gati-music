@@ -155,6 +155,66 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] selection:bg-[#B6FF00] selection:text-black font-sans overflow-x-hidden">
       {/* SEO Canonical */}
       <link rel="canonical" href="https://www.gatimusic.in/" />
+
+      {/* Product Schema to fix GSC errors */}
+      <script type="application/ld+json">
+        {JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "Basic Distribution Plan",
+            "description": "Release your music on Spotify, Apple Music and 250+ platforms with fast delivery and 80% royalties.",
+            "image": "https://www.gatimusic.in/basic-plan.jpg",
+            "brand": {
+              "@type": "Brand",
+              "name": "Gati Music Distribution"
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "75",
+              "priceCurrency": "INR",
+              "availability": "https://schema.org/InStock",
+              "url": "https://www.gatimusic.in/pricing"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "Monthly Distribution Plan",
+            "description": "Monthly music distribution plan with unlimited releases, verified artist profiles, and 80% royalties.",
+            "image": "https://www.gatimusic.in/monthly-plan.jpg",
+            "brand": {
+              "@type": "Brand",
+              "name": "Gati Music Distribution"
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "199",
+              "priceCurrency": "INR",
+              "availability": "https://schema.org/InStock",
+              "url": "https://www.gatimusic.in/pricing"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "Yearly Distribution Plan",
+            "description": "Best value yearly plan for artists with unlimited uploads, priority support, and maximum earnings.",
+            "image": "https://www.gatimusic.in/yearly-plan.jpg",
+            "brand": {
+              "@type": "Brand",
+              "name": "Gati Music Distribution"
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "999",
+              "priceCurrency": "INR",
+              "availability": "https://schema.org/InStock",
+              "url": "https://www.gatimusic.in/pricing"
+            }
+          }
+        ])}
+      </script>
       
       {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 w-full px-4 md:px-6 flex justify-between items-center z-50 transition-all duration-300 ${isScrolled ? 'bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-[#222] shadow-[0_4px_30px_rgba(0,0,0,0.5)] py-3' : 'bg-transparent py-5'}`}>
@@ -205,7 +265,7 @@ export default function LandingPage() {
             <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Dashboard</span>
           </Link>
 
-          <Link to="/login" className="hidden md:block font-display uppercase tracking-widest text-xs font-bold text-white hover:text-[#B6FF00] hover:drop-shadow-[0_0_8px_rgba(182,255,0,0.5)] transition-all">Artist Login</Link>
+          <Link to="/login" className="hidden md:block font-display uppercase tracking-widest text-[11px] font-black text-white hover:text-[#B6FF00] hover:drop-shadow-[0_0_8px_rgba(182,255,0,0.5)] transition-all bg-white/5 border border-white/10 px-5 py-2 rounded-full hover:bg-white/10">Artist Login</Link>
           <Link 
             to="/contact"
             className="hidden md:block border border-[#B6FF00]/50 text-[#B6FF00] px-5 py-2.5 rounded-full font-display uppercase tracking-widest text-xs font-bold hover:bg-[#B6FF00] hover:text-black hover:shadow-[0_0_15px_rgba(182,255,0,0.4)] transition-all duration-300"
@@ -224,30 +284,78 @@ export default function LandingPage() {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-40 bg-[#0a0a0a] pt-24 px-6 flex flex-col gap-8 h-screen overflow-y-auto"
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-[#0a0a0a]/95 backdrop-blur-2xl lg:hidden"
           >
-            <div className="flex flex-col gap-6">
-              <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">How it Works</a>
-              <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">Why Gati</a>
-              <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">Plans & Pricing</a>
-              <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-white border-b border-[#1a1a1a] pb-4">FAQ</a>
-              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-display uppercase tracking-widest text-[#ccff00] border-b border-[#1a1a1a] pb-4">Artist Login</Link>
-            </div>
+            <motion.div
+              initial={{ x: '100%', opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }} 
+              exit={{ x: '100%', opacity: 0 }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="absolute right-0 top-0 bottom-0 w-full sm:w-[400px] bg-[#0a0a0a] border-l border-white/10 pt-24 px-8 flex flex-col h-screen overflow-y-auto"
+            >
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="absolute top-8 right-8 p-3 bg-white/5 rounded-full text-white hover:bg-white/10 transition-colors"
+                aria-label="Close Menu"
+              >
+                <X size={24} />
+              </button>
 
-            <div className="flex flex-col gap-4 mt-4">
-              <h4 className="text-[10px] font-display uppercase tracking-[0.3em] text-gray-500 font-bold">More</h4>
-              <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">About Gati</Link>
-              <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">Blog</Link>
-              <Link to="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">Terms</Link>
-              <Link to="/privacy" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-display uppercase tracking-widest text-gray-400">Privacy</Link>
-            </div>
-            
-            <WhatsAppButton 
-              text="Contact Support" 
-              className="mt-4 bg-[#B6FF00] text-black w-full px-8 py-5 rounded-md shadow-[0_0_30px_rgba(182,255,0,0.2)]" 
-            />
+              <div className="flex flex-col gap-2">
+                {[
+                  { name: "How it Works", href: "#how-it-works" },
+                  { name: "Why Gati", href: "#features" },
+                  { name: "Plans & Pricing", href: "/pricing" },
+                  { name: "FAQ", href: "/faq" },
+                  { name: "Artist Login", href: "/login", highlight: true }
+                ].map((link, i) => (
+                  <motion.div
+                    key={link.name}
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 + i * 0.05 }}
+                  >
+                    <Link 
+                      to={link.href.startsWith('#') ? '/' : link.href}
+                      onClick={(e) => {
+                        if (link.href.startsWith('#')) {
+                          setIsMobileMenuOpen(false);
+                          setTimeout(() => {
+                            const el = document.getElementById(link.href.substring(1));
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        } else {
+                          setIsMobileMenuOpen(false);
+                        }
+                      }}
+                      className={`block py-5 text-3xl font-display font-black uppercase tracking-tighter border-b border-white/5 transition-all active:scale-95 ${link.highlight ? 'text-[#B6FF00]' : 'text-white'}`}
+                    >
+                      {link.name}
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-6 mt-12 mb-20">
+                <div>
+                  <h4 className="text-[10px] font-display uppercase tracking-[0.4em] text-gray-500 font-black mb-6">Discovery</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">About</Link>
+                    <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Blog</Link>
+                    <Link to="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Terms</Link>
+                    <Link to="/privacy" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Privacy</Link>
+                  </div>
+                </div>
+                
+                <WhatsAppButton 
+                  text="Contact Support" 
+                  className="mt-4 bg-[#B6FF00] text-black w-full px-8 py-6 rounded-2xl shadow-[0_20px_50px_rgba(182,255,0,0.2)] font-black text-lg" 
+                />
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

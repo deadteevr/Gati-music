@@ -37,7 +37,7 @@
         "coverUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "title", "mainArtist", "pLine", "cLine", "lyricist", "status", "createdAt"]
+      "required": ["uid", "title", "mainArtist", "pLine", "cLine", "status", "createdAt"]
     },
     "Royalty": {
       "title": "Royalty",
@@ -78,6 +78,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "message", "read", "createdAt"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback, bug reports, and suggestions.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "userName": { "type": "string" },
+        "email": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["new", "read", "resolved"] }
+      },
+      "required": ["uid", "message", "createdAt", "status"]
     }
   },
   "firestore": {
@@ -100,6 +114,10 @@
     "/notifications/{notificationId}": {
       "schema": { "$ref": "#/entities/Notification" },
       "description": "Store user notifications"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": { "$ref": "#/entities/Feedback" },
+      "description": "Store user feedback"
     }
   }
 }

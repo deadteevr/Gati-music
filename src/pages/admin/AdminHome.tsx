@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Users, Music, Activity, PlayCircle, IndianRupee } from 'lucide-react';
+import { Users, Music, Activity, PlayCircle, IndianRupee, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -12,9 +12,11 @@ export default function AdminHome() {
     songsInReview: 0,
     liveSongs: 0,
     totalStreams: 0,
-    pendingWithdrawals: 0
+    pendingWithdrawals: 0,
+    activeSubscriptions: 0
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentFeedback, setRecentFeedback] = useState<any[]>([]);
   const [monthlyEarningsData, setMonthlyEarningsData] = useState<any[]>([]);
   const [monthlyStreamsData, setMonthlyStreamsData] = useState<any[]>([]);
 
@@ -25,13 +27,19 @@ export default function AdminHome() {
       const users = snap.docs.filter(d => d.data().role !== 'admin');
       
       let totalPlatformStreams = 0;
+      let activeSubs = 0;
       users.forEach(u => {
         if (u.data().streams?.total) {
           totalPlatformStreams += u.data().streams.total;
         }
+        if (u.data().subscription?.status === 'Active') {
+          const expiry = u.data().subscription.expiryDate;
+          const isExpired = expiry && new Date() > (expiry.toDate ? expiry.toDate() : new Date(expiry));
+          if (!isExpired) activeSubs++;
+        }
       });
       
-      setStats(s => ({ ...s, totalArtists: users.length, totalStreams: totalPlatformStreams }));
+      setStats(s => ({ ...s, totalArtists: users.length, totalStreams: totalPlatformStreams, activeSubscriptions: activeSubs }));
     }, (error) => {
       console.error("AdminHome: users snapshot error", error);
     });
@@ -112,12 +120,21 @@ export default function AdminHome() {
     }, (error) => {
       console.error("AdminHome: royalties snapshot error", error);
     });
+
+    // Fetch Feedback
+    const qFeedback = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'), limit(3));
+    const unsubFeedback = onSnapshot(qFeedback, (snap) => {
+      setRecentFeedback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.error("AdminHome: feedback snapshot error", error);
+    });
     
     return () => {
       unsubUsers();
       unsubSongs();
       unsubWithdrawals();
       unsubRoyalties();
+      unsubFeedback();
     };
   }, []);
 
@@ -131,7 +148,7 @@ export default function AdminHome() {
       {/* STATS CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard title="Total Artists" value={stats.totalArtists} icon={<Users size={18} />} />
-        <StatCard title="Total Songs" value={stats.totalSongs} icon={<Music size={18} />} />
+        <StatCard title="Active Plans" value={stats.activeSubscriptions} icon={<Zap size={18} />} color="text-[#ccff00]" />
         <StatCard title="In Review" value={stats.songsInReview} icon={<Activity size={18} />} color="text-yellow-500" />
         <StatCard title="Live Songs" value={stats.liveSongs} icon={<PlayCircle size={18} />} color="text-[#9d4edd]" />
         <StatCard title="Total Streams" value={stats.totalStreams.toLocaleString() || "0"} icon={<PlayCircle size={18} />} />
@@ -205,15 +222,38 @@ export default function AdminHome() {
           </div>
         </div>
 
-        {/* QUICK ACTIONS */}
-        <div className="col-span-1 bg-[#111] p-6 border border-[#333]">
-          <h2 className="text-lg font-display uppercase tracking-widest text-[#9d4edd] mb-6">Quick Actions</h2>
-          <div className="flex flex-col gap-3">
-            <Link to="/admin/artists" className="bg-[#222] border border-[#333] hover:border-white text-white p-4 font-display uppercase tracking-widest text-sm text-center transition-colors">Add Artist</Link>
-            <Link to="/admin/songs" className="bg-[#222] border border-[#333] hover:border-white text-white p-4 font-display uppercase tracking-widest text-sm text-center transition-colors">View Submissions</Link>
-            <Link to="/admin/notifications" className="bg-[#9d4edd] text-white p-4 font-display uppercase tracking-widest text-sm text-center font-bold hover:bg-[#7b2cbf] transition-colors">Send Announcement</Link>
-          </div>
+      {/* QUICK ACTIONS */}
+      <div className="col-span-1 bg-[#111] p-6 border border-[#333]">
+        <h2 className="text-lg font-display uppercase tracking-widest text-[#9d4edd] mb-6">Quick Actions</h2>
+        <div className="flex flex-col gap-3">
+          <Link to="/admin/subscriptions" className="bg-[#ccff00] text-black border border-[#ccff00] hover:bg-white hover:border-white p-4 font-display uppercase tracking-widest text-xs text-center font-black transition-colors">Manage Plans</Link>
+          <Link to="/admin/smart-links" className="bg-[#222] border border-[#333] hover:border-white text-white p-4 font-display uppercase tracking-widest text-xs text-center transition-colors">Manage Smart Links</Link>
+          <Link to="/admin/songs" className="bg-[#222] border border-[#333] hover:border-white text-white p-4 font-display uppercase tracking-widest text-xs text-center transition-colors">View Submissions</Link>
+          <Link to="/admin/notifications" className="bg-[#9d4edd] text-white p-4 font-display uppercase tracking-widest text-xs text-center font-bold hover:bg-[#7b2cbf] transition-colors">Send Announcement</Link>
         </div>
+      </div>
+      </div>
+
+      {/* RECENT FEEDBACK */}
+      <div className="bg-[#111] p-6 border border-[#333]">
+         <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-display uppercase tracking-widest text-[#ccff00]">Recent Feedback</h2>
+            <Link to="/admin/notifications" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest">View All Feedback</Link>
+         </div>
+         <div className="grid md:grid-cols-3 gap-6">
+            {recentFeedback.length > 0 ? recentFeedback.map((f) => (
+              <div key={f.id} className="p-4 bg-black border border-[#222] relative overflow-hidden group">
+                 {f.status === 'new' && <div className="absolute top-0 right-0 w-16 h-16 bg-[#ccff00]/10 rounded-full -mr-8 -mt-8" />}
+                 <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-bold text-white truncate max-w-[120px]">{f.userName || 'Artist'}</span>
+                    <span className="text-[8px] text-gray-600 font-mono">{new Date(f.createdAt?.toDate ? f.createdAt.toDate() : f.createdAt).toLocaleDateString()}</span>
+                 </div>
+                 <p className="text-[11px] text-gray-400 font-sans line-clamp-3 italic">"{f.message}"</p>
+              </div>
+            )) : (
+              <p className="text-gray-600 text-xs italic">No recent feedback.</p>
+            )}
+         </div>
       </div>
     </div>
   );
