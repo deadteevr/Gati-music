@@ -4,7 +4,7 @@ import { logout } from '../lib/auth';
 import { useState, lazy, Suspense, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getRemainingDays, isPlanActive } from '../lib/planUtils';
+import { getRemainingDays, isPlanActive, formatExpiryDate } from '../lib/planUtils';
 import PremiumLoader from '../components/PremiumLoader';
 import BackButton from '../components/BackButton';
 
@@ -16,7 +16,6 @@ const ArtistWithdrawal = lazy(() => import('./artist/ArtistWithdrawal'));
 const ArtistNotifications = lazy(() => import('./artist/ArtistNotifications'));
 const ArtistProfile = lazy(() => import('./artist/ArtistProfile'));
 const ArtistMarketing = lazy(() => import('./artist/ArtistMarketing'));
-const ArtistSmartLinks = lazy(() => import('./artist/ArtistSmartLinks'));
 
 export default function Dashboard({ user, userData }: { user: any, userData: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -32,6 +31,8 @@ export default function Dashboard({ user, userData }: { user: any, userData: any
     const q = query(collection(db, 'notifications'), where('uid', '==', user.uid), where('read', '==', false));
     const unsub = onSnapshot(q, (snap) => {
       setUnreadCount(snap.size);
+    }, (error) => {
+      console.error("Notifications snapshot error:", error);
     });
     return unsub;
   }, [user]);
@@ -44,7 +45,6 @@ export default function Dashboard({ user, userData }: { user: any, userData: any
     { name: "Overview", path: "/dashboard", icon: <Home size={20} /> },
     { name: "Upload Song", path: "/dashboard/upload", icon: <Upload size={20} /> },
     { name: "My Releases", path: "/dashboard/status", icon: <Clock size={20} /> },
-    { name: "Smart Links", path: "/dashboard/smart-links", icon: <Zap size={20} /> },
     { name: "Marketing", path: "/dashboard/marketing", icon: <Megaphone size={20} /> },
     { name: "Notifications", path: "/dashboard/notifications", icon: <Bell size={20} /> },
     { name: "Royalties", path: "/dashboard/royalties", icon: <IndianRupee size={20} /> },
@@ -119,7 +119,7 @@ export default function Dashboard({ user, userData }: { user: any, userData: any
                       style={{ width: `${Math.min(100, (daysLeft / 30) * 100)}%` }}
                     ></div>
                  </div>
-                 <p className="text-[9px] text-gray-500 font-sans uppercase">Renews on {subscription?.expiryDate?.toDate?.()?.toLocaleDateString() || 'N/A'}</p>
+                 <p className="text-[9px] text-gray-500 font-sans uppercase">Renews on {formatExpiryDate(subscription?.expiryDate)}</p>
                </div>
             ) : (
                <div className="space-y-3">
@@ -221,7 +221,6 @@ export default function Dashboard({ user, userData }: { user: any, userData: any
               <Route path="/" element={<ArtistHome user={user} userData={userData} />} />
               <Route path="/upload" element={<ArtistUpload user={user} userData={userData} />} />
               <Route path="/status" element={<ArtistStatus user={user} userData={userData} />} />
-              <Route path="/smart-links" element={<ArtistSmartLinks user={user} userData={userData} />} />
               <Route path="/royalties" element={<ArtistRoyalties user={user} userData={userData} />} />
               <Route path="/withdrawals" element={<ArtistWithdrawal user={user} userData={userData} />} />
               <Route path="/notifications" element={<ArtistNotifications user={user} userData={userData} />} />

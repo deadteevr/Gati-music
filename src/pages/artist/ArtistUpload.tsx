@@ -3,19 +3,25 @@ import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert } from 'lucide-react';
+import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert, Mail } from 'lucide-react';
 import { geminiService } from '../../services/geminiService';
 import { AIActionButton } from '../../components/AIComponents';
 import PremiumLoader from '../../components/PremiumLoader';
 
 import { getRemainingDays, isPlanActive } from '../../lib/planUtils';
 
+import { sendEmailVerification } from 'firebase/auth';
+
+import { useGlobalError } from '../../components/ErrorProvider';
+
 export default function ArtistUpload({ user, userData }: { user: any, userData: any }) {
   const navigate = useNavigate();
+  const { showError } = useGlobalError();
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
   
   const isSubscribed = isPlanActive(userData?.subscription);
+  const isEmailVerified = user?.emailVerified;
   const daysLeft = getRemainingDays(userData?.subscription?.expiryDate);
 
   const [uploadMessage, setUploadMessage] = useState("");
@@ -62,6 +68,45 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
   const [processingAI, setProcessingAI] = useState(false);
   const [rawCredits, setRawCredits] = useState("");
   const [showAIInput, setShowAIInput] = useState(false);
+
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+
+  const handleResendVerification = async () => {
+    if (!user) return;
+    setResendingVerification(true);
+    setResendSuccess(false);
+    setError("");
+    try {
+      await sendEmailVerification(user);
+      setResendSuccess(true);
+    } catch (err: any) {
+      console.error("Resend error:", err);
+      if (err.code === 'auth/too-many-requests') {
+        setError("Too many requests. Please wait a few minutes before trying again.");
+      } else {
+        setError("Failed to send verification email: " + err.message);
+      }
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
+  const handleManualVerifyCheck = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await user.reload();
+      // Force refresh the token to get the updated custom claims (specifically email_verified)
+      await user.getIdToken(true);
+      window.location.reload();
+    } catch (err: any) {
+      console.error("Verification check error:", err);
+      window.location.reload();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading) return;
@@ -167,7 +212,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     setAudioProgress(-1);
     setCoverProgress(-1);
     
-    console.log("Upload started...");
+    console.log("Upload process initiated...");
 
     try {
       if (!formData.title || !formData.mainArtist || !formData.pLine || !formData.cLine) {
@@ -208,14 +253,17 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
         if (!cloudName || !uploadPreset) {
-          throw new Error("Cloudinary not configured. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.");
+          throw new Error("Cloudinary not configured correctly. Please check VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.");
         }
 
+        console.log(`Starting Cloudinary upload for ${type}...`);
         setStatus('uploading');
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', uploadPreset);
-        formData.append('folder', `gati/${auth.currentUser?.uid}`);
+        setProgress(0); // Ensure it starts at 0
+
+        const formDataCloud = new FormData();
+        formDataCloud.append('file', file);
+        formDataCloud.append('upload_preset', uploadPreset);
+        formDataCloud.append('folder', `gati/${auth.currentUser?.uid}`);
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`);
@@ -224,6 +272,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
               const percent = (e.loaded / e.total) * 100;
+              console.log(`${type} upload progress: ${Math.round(percent)}%`);
               setProgress(percent);
             }
           };
@@ -231,40 +280,48 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
           xhr.onload = () => {
             if (xhr.status === 200) {
               const res = JSON.parse(xhr.responseText);
+              console.log(`${type} upload success: ${res.secure_url}`);
               setStatus('success');
               resolve(res.secure_url);
             } else {
+              console.error(`${type} upload failed status ${xhr.status}:`, xhr.responseText);
               setStatus('error');
-              reject(new Error(`Cloudinary Error: ${xhr.responseText}`));
+              reject(new Error(`Cloudinary Error (${xhr.status}): ${xhr.responseText}`));
             }
           };
 
-          xhr.onerror = () => {
+          xhr.onerror = (err) => {
+            console.error(`${type} upload network error:`, err);
             setStatus('error');
             reject(new Error('Network Error during Cloudinary upload'));
           };
 
-          xhr.send(formData);
+          xhr.send(formDataCloud);
         });
       };
 
-      const uploadToFirebase = (file: File, path: string, setProgress: (p: number) => void, setStatus: (s: any) => void) => {
+      const uploadToFirebase = (file: File, path: string, setProgress: (p: number) => void, setStatus: (s: any) => void, type: string) => {
+        console.log(`Starting Firebase Storage upload for ${type} at path: ${path}`);
         const storageRef = ref(storage, path);
         const uploadTask = uploadBytesResumable(storageRef, file);
         setStatus('uploading');
+        setProgress(0); // Ensure it starts at 0
 
         return new Promise<string>((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => {
               const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              console.log(`${type} upload progress: ${Math.round(progress)}%`);
               setProgress(progress);
             },
             (error) => {
+              console.error(`${type} upload error:`, error);
               setStatus('error');
               reject(error);
             },
             async () => {
               const url = await getDownloadURL(uploadTask.snapshot.ref);
+              console.log(`${type} upload success: ${url}`);
               setStatus('success');
               resolve(url);
             }
@@ -272,91 +329,118 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         });
       };
 
-      // Execute Uploads
-      const useCloudinary = !!import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      // Execute Uploads in Parallel
+      const useCloudinary = !!import.meta.env.VITE_CLOUDINARY_CLOUD_NAME && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME !== "MY_CLOUD_NAME";
+      const uploadPromises: Promise<any>[] = [];
 
       if (audioInputType === 'file' && audioFile) {
         if (useCloudinary) {
-          finalAudioUrl = await uploadToCloudinary(audioFile, 'audio', setAudioProgress, setAudioStatus);
+          uploadPromises.push(uploadToCloudinary(audioFile, 'audio', setAudioProgress, setAudioStatus).then(url => finalAudioUrl = url));
         } else {
           const path = `uploads/${user.uid}/audio_${Date.now()}_${audioFile.name.replace(/\s+/g, '_')}`;
-          finalAudioUrl = await uploadToFirebase(audioFile, path, setAudioProgress, setAudioStatus);
+          uploadPromises.push(uploadToFirebase(audioFile, path, setAudioProgress, setAudioStatus, 'audio').then(url => finalAudioUrl = url));
         }
       }
 
       if (coverInputType === 'file' && coverFile) {
         if (useCloudinary) {
-          finalCoverUrl = await uploadToCloudinary(coverFile, 'image', setCoverProgress, setCoverStatus);
+          uploadPromises.push(uploadToCloudinary(coverFile, 'image', setCoverProgress, setCoverStatus).then(url => finalCoverUrl = url));
         } else {
           const path = `uploads/${user.uid}/cover_${Date.now()}_${coverFile.name.replace(/\s+/g, '_')}`;
-          finalCoverUrl = await uploadToFirebase(coverFile, path, setCoverProgress, setCoverStatus);
+          uploadPromises.push(uploadToFirebase(coverFile, path, setCoverProgress, setCoverStatus, 'image').then(url => finalCoverUrl = url));
         }
+      }
+
+      if (uploadPromises.length > 0) {
+        setUploadMessage("Uploading assets...");
+        await Promise.all(uploadPromises);
       }
 
       
       console.log("All uploads finished. Saving metadata to Firestore...");
 
-      await addDoc(collection(db, 'submissions'), {
-        uid: user.uid,
-        title: formData.title,
-        mainArtist: formData.mainArtist,
-        featuringArtists: formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
-        additionalContributors: additionalArtists,
-        labelName: formData.labelName,
-        pLine: formData.pLine,
-        cLine: formData.cLine,
-        lyricist: formData.lyricist,
-        producer: formData.producer,
-        producerSpotify: formData.producerSpotify,
-        otherCredits: formData.otherCredits,
-        scheduleDate: formData.scheduleDate,
-        mainSpotifyLink: formData.mainSpotifyLink,
-        featureSpotifyLinks: formData.featureSpotifyLinks,
-        excludedPlatforms: formData.excludedPlatforms,
-        audioUrl: finalAudioUrl,
-        coverUrl: finalCoverUrl,
-        status: "Reviewing",
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        await addDoc(collection(db, 'submissions'), {
+          uid: user.uid,
+          title: formData.title,
+          mainArtist: formData.mainArtist,
+          featuringArtists: formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
+          additionalContributors: additionalArtists,
+          labelName: formData.labelName,
+          pLine: formData.pLine,
+          cLine: formData.cLine,
+          lyricist: formData.lyricist,
+          producer: formData.producer,
+          producerSpotify: formData.producerSpotify,
+          otherCredits: formData.otherCredits,
+          scheduleDate: formData.scheduleDate,
+          mainSpotifyLink: formData.mainSpotifyLink,
+          featureSpotifyLinks: formData.featureSpotifyLinks,
+          excludedPlatforms: formData.excludedPlatforms,
+          audioUrl: finalAudioUrl,
+          coverUrl: finalCoverUrl,
+          status: "Reviewing",
+          createdAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        handleFirestoreError(err, OperationType.CREATE, 'submissions', false);
+        throw err;
+      }
 
       // Update User Upload Count & Expiry Logic
-      const newUploadCount = (userData.subscription?.uploadCount || 0) + 1;
-      const isBasic = userData.subscription?.planType === 'Basic';
-      const shouldExpire = isBasic && newUploadCount >= 1;
+      try {
+        const newUploadCount = (userData.subscription?.uploadCount || 0) + 1;
+        const isBasic = userData.subscription?.planType === 'Basic';
+        const shouldExpire = isBasic && newUploadCount >= 1;
 
-      await updateDoc(doc(db, 'users', user.uid), {
-        'subscription.uploadCount': newUploadCount,
-        'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
-      });
+        await updateDoc(doc(db, 'users', user.uid), {
+          'subscription.uploadCount': newUploadCount,
+          'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
+        });
+      } catch (err: any) {
+        handleFirestoreError(err, OperationType.UPDATE, 'users', false);
+        // We don't necessarily want to fail the whole submission if just the count fails, 
+        // but it's important for the business logic.
+        throw err;
+      }
 
       // Log Activity
-      await addDoc(collection(db, 'activity_logs'), {
-        uid: user.uid,
-        type: 'song_uploaded',
-        message: `Uploaded new release: ${formData.title}`,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        await addDoc(collection(db, 'activity_logs'), {
+          uid: user.uid,
+          type: 'song_uploaded',
+          message: `Uploaded new release: ${formData.title}`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err: any) {
+        handleFirestoreError(err, OperationType.CREATE, 'activity_logs', false);
+        // Non-critical
+      }
       
       console.log("Submission successful!");
       // Show Success screen
       setSuccess(true);
       
     } catch (err: any) {
-      handleFirestoreError(err, OperationType.CREATE, 'submissions', false);
-      
       console.error("Submission error:", err);
+      let message = "Failed to submit release.";
+      
       if (err.code?.startsWith('storage/')) {
-        setError("Firebase Storage Error: " + err.message);
-      } else if (err.message?.includes('Missing or insufficient permissions')) {
-        setError("Permission Denied: Ensure you are logged in and have permission to upload.");
-      } else {
+        message = "Firebase Storage Error: " + err.message;
+      } else if (err.message && err.message.startsWith('{')) {
         try {
           const parsed = JSON.parse(err.message);
-          setError(parsed.userFriendlyMessage || "Failed to submit release.");
+          message = parsed.userFriendlyMessage || `Database Error: ${parsed.error}`;
         } catch {
-          setError(err.message || "Failed to submit release.");
+          message = err.message;
         }
+      } else if (err.message?.includes('Missing or insufficient permissions')) {
+        message = "Permission Denied: Ensure you are logged in and have permission to upload.";
+      } else {
+        message = err.message || "Failed to submit release.";
       }
+
+      showError(message, () => handleSubmit(e));
     } finally {
       setLoading(false);
       // Don't reset progress here so user can see it's 100% on success/error screens if needed
@@ -433,6 +517,53 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     );
   }
 
+  if (!isEmailVerified) {
+    return (
+      <div className="max-w-3xl pb-20 flex flex-col items-center justify-center min-h-[60vh] text-center bg-[#111] border border-[#333] p-10">
+        <div className="w-20 h-20 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mb-6 border border-yellow-500/20">
+          <ShieldAlert size={40} />
+        </div>
+        <h1 className="text-3xl font-display uppercase tracking-tighter mb-4 text-white">Verification Required</h1>
+        <p className="text-gray-400 font-sans text-lg mb-8 max-w-lg">
+          Your email address (<span className="text-white">{user?.email}</span>) is not verified. 
+          For security reasons, distribution is locked until you verify your account.
+        </p>
+        
+        {resendSuccess && (
+          <div className="bg-green-500/10 border border-green-500/20 text-green-500 p-4 mb-6 rounded flex items-center gap-3">
+            <Mail size={20} />
+            <p className="text-sm font-sans">Verification email sent! Please check your inbox.</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 mb-6 rounded">
+            <p className="text-sm font-sans">{error}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4 w-full max-w-xs">
+          <button 
+            onClick={handleManualVerifyCheck}
+            className="w-full bg-[#ccff00] text-black font-display font-bold py-4 uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
+          >
+            I've Verified My Email
+          </button>
+          
+          <button 
+            onClick={handleResendVerification}
+            disabled={resendingVerification}
+            className="w-full bg-transparent border border-[#333] text-gray-400 font-display font-medium py-3 uppercase tracking-widest text-[10px] hover:border-white hover:text-white transition-all disabled:opacity-50"
+          >
+            {resendingVerification ? 'Sending...' : 'Resend Verification Email'}
+          </button>
+        </div>
+
+        <p className="mt-8 text-xs text-gray-500 italic font-sans">Please check your inbox (and spam folder) for a verification link.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl">
       {loading && <PremiumLoader progress={uploadProgress} message={uploadMessage} />}
@@ -440,32 +571,6 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">Upload New Release</h1>
         <p className="text-gray-400">Fill details carefully to avoid delays.</p>
       </div>
-
-      {error && (
-        <div className="bg-red-500/10 border border-red-500 p-6 mb-8">
-          <h3 className="text-red-500 font-display font-bold uppercase tracking-widest mb-2 text-lg">Submission Issue</h3>
-          <p className="text-gray-300 font-sans text-sm mb-6">
-            {error.includes("Storage") ? 
-              "There was a problem uploading your files. This often happens if the storage permissions are not set to allow uploads, or if your network is unstable." : 
-              error}
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <button 
-              onClick={() => setError("")}
-              className="bg-white/10 text-white font-display font-bold tracking-widest uppercase px-6 py-3 text-sm hover:bg-white/20 transition-colors"
-            >
-              Try Again
-            </button>
-            <a 
-              href="https://wa.me/917626841258?text=Hi,%20I%20am%20getting%20an%20error%20while%20uploading%20my%20files%20on%20the%20Gati%20Dashboard." 
-              target="_blank" rel="noopener noreferrer"
-              className="inline-block bg-[#ccff00] text-black font-display font-bold tracking-widest uppercase px-6 py-3 text-sm hover:bg-white transition-colors"
-            >
-              Support on WhatsApp
-            </a>
-          </div>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-8 pb-20">
         {/* ... Sections A to D remain same ... */}

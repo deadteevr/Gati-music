@@ -3,6 +3,8 @@ import { Phone, Edit2, Check, X, Key, Mail, Instagram, Youtube, Music, CreditCar
 import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
+import { Link } from 'react-router-dom';
+import { isPlanActive } from '../../lib/planUtils';
 
 export default function ArtistProfile({ user }: { user: any }) {
   const whatsappNumber = "917626841258";
@@ -26,6 +28,7 @@ export default function ArtistProfile({ user }: { user: any }) {
     ifscCode: ''
   });
   const [savingExtra, setSavingExtra] = useState(false);
+  const [userDoc, setUserDoc] = useState<any>(null);
 
   useEffect(() => {
     const fetchExtra = async () => {
@@ -33,6 +36,7 @@ export default function ArtistProfile({ user }: { user: any }) {
         const d = await getDoc(doc(db, 'users', user.uid));
         if (d.exists()) {
           const data = d.data();
+          setUserDoc(data);
           setSocials({
             instagram: data.socials?.instagram || '',
             spotify: data.socials?.spotify || '',
@@ -111,6 +115,41 @@ export default function ArtistProfile({ user }: { user: any }) {
       <div className="mb-10">
         <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">My Profile</h1>
         <p className="text-gray-400 font-sans">Manage your account details, social links, and payout information.</p>
+      </div>
+
+      <div className="bg-[#111] p-6 sm:p-8 border border-[#333] mb-8 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+          <CreditCard size={120} className="text-[#ccff00]" />
+        </div>
+        <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-6 border-b border-[#333] pb-4">My Subscription</h2>
+        
+        {userDoc?.subscription ? (
+          <div className="grid md:grid-cols-3 gap-6 relative z-10">
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Plan Type</label>
+              <div className="text-lg font-display uppercase font-black text-white">{userDoc.subscription.planType}</div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Status</label>
+              <div className={`text-lg font-display uppercase font-black ${
+                !isPlanActive(userDoc.subscription) ? 'text-red-500' : 'text-[#ccff00]'
+              }`}>
+                {!isPlanActive(userDoc.subscription) ? 'Expired' : 'Active'}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Uploads Used</label>
+              <div className="text-lg font-display uppercase font-black text-white">
+                {userDoc.subscription.planType === 'Basic' ? `${userDoc.subscription.uploadCount || 0}/1` : 'Unlimited'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-6 border border-dashed border-[#333] text-center">
+            <p className="text-gray-500 text-xs font-sans mb-4 uppercase tracking-[0.2em]">No active subscription found</p>
+            <Link to="/pricing" className="text-[#ccff00] text-[10px] font-display font-black uppercase tracking-widest hover:underline transition-all">Browse Plans</Link>
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 mb-8">

@@ -1,21 +1,28 @@
 import { Timestamp } from 'firebase/firestore';
 
-export type PlanType = 'Free' | 'Basic' | 'Monthly' | 'Yearly';
+export type PlanType = 'Basic' | 'Monthly' | 'Yearly' | 'Free';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Manual';
-export type SubscriptionStatus = 'Active' | 'Expired' | 'Pending';
+export type SubscriptionStatus = 'Active' | 'Expired';
 
 export interface Subscription {
   planType: PlanType;
-  startDate: any; // Firestore Timestamp
-  expiryDate: any; // Firestore Timestamp
+  startDate: any; // Firestore Timestamp or ISO string
+  expiryDate: any; // Firestore Timestamp or ISO string
   status: SubscriptionStatus;
   paymentStatus: PaymentStatus;
-  uploadCount?: number;
+  uploadCount: number;
 }
+
+const getAsDate = (val: any) => {
+  if (!val) return new Date(0);
+  if (val instanceof Timestamp) return val.toDate();
+  if (typeof val === 'string' || typeof val === 'number') return new Date(val);
+  if (val?.seconds !== undefined) return new Date(val.seconds * 1000); // Plain object from Firestore
+  return new Date(val);
+};
 
 export function isPlanActive(sub?: Subscription): boolean {
   if (!sub) return false;
-  if (sub.planType === 'Free') return false; 
   if (sub.status === 'Expired') return false;
   
   // Basic plan check: 1 song limit
@@ -24,7 +31,7 @@ export function isPlanActive(sub?: Subscription): boolean {
   }
 
   const now = new Date();
-  const expiry = sub.expiryDate instanceof Timestamp ? sub.expiryDate.toDate() : new Date(sub.expiryDate);
+  const expiry = getAsDate(sub.expiryDate);
   
   if (now >= expiry) return false;
 
@@ -34,8 +41,19 @@ export function isPlanActive(sub?: Subscription): boolean {
 export function getRemainingDays(expiryDate: any): number {
   if (!expiryDate) return 0;
   const now = new Date();
-  const expiry = expiryDate instanceof Timestamp ? expiryDate.toDate() : new Date(expiryDate);
+  const expiry = getAsDate(expiryDate);
   const diffTime = expiry.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
+}
+
+export function formatExpiryDate(expiryDate: any): string {
+  if (!expiryDate) return 'N/A';
+  const date = getAsDate(expiryDate);
+  if (date.getTime() === 0) return 'N/A';
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
 }

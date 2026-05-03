@@ -110,21 +110,20 @@ export default function ArtistMarketing({ user }: { user: any }) {
 
   // Estimator state
   const [estimateType, setEstimateType] = useState<'youtube' | 'reels'>('youtube');
-  const [ytBudget, setYTBudget] = useState(1000);
-  const [reelsBudget, setReelsBudget] = useState(1000);
+  const [budget, setBudget] = useState(1000);
 
-  const getYTReach = (cost: number) => {
-    // ~₹0.15 to ₹0.20 per view for YouTube via Google Ads
-    const minViews = Math.floor(cost / 0.20);
-    const maxViews = Math.floor(cost / 0.14);
-    return `${minViews.toLocaleString()} - ${maxViews.toLocaleString()}`;
-  };
-
-  const getReelsReach = (cost: number) => {
-    // ~₹0.08 to ₹0.15 per view for Meta Ads
-    const minViews = Math.floor(cost / 0.15);
-    const maxViews = Math.floor(cost / 0.07);
-    return `${minViews.toLocaleString()} - ${maxViews.toLocaleString()}`;
+  const getEstimate = (type: 'youtube' | 'reels', cost: number) => {
+    if (type === 'youtube') {
+      // ~₹0.15 to ₹0.20 per view for YouTube via Google Ads
+      const minViews = Math.floor(cost / 0.2);
+      const maxViews = Math.floor(cost / 0.15);
+      return `${minViews.toLocaleString()} - ${maxViews.toLocaleString()}`;
+    } else {
+      // ~₹0.10 to ₹0.15 per view for Meta Ads
+      const minViews = Math.floor(cost / 0.15);
+      const maxViews = Math.floor(cost / 0.08);
+      return `${minViews.toLocaleString()} - ${maxViews.toLocaleString()}`;
+    }
   };
 
   useEffect(() => {
@@ -146,7 +145,6 @@ export default function ArtistMarketing({ user }: { user: any }) {
   };
 
   const handleCustomPromo = () => {
-    const budget = estimateType === 'youtube' ? ytBudget : reelsBudget;
     const encodedMsg = encodeURIComponent(`Hi Gati Team, I want to start a custom ${estimateType} campaign with a budget of ₹${budget}. Please guide me.`);
     window.open(`https://wa.me/917626841258?text=${encodedMsg}`, '_blank');
   };
@@ -180,7 +178,7 @@ export default function ArtistMarketing({ user }: { user: any }) {
              <div className="bg-[#111] p-4 border border-[#333] rounded-sm min-w-[140px]">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Impact (Views)</p>
                 <p className="text-2xl font-display font-black text-[#ccff00]">
-                   {(activeCampaigns.reduce((acc, c) => acc + (c.metrics?.views || 0), 0)).toLocaleString()}
+                  {activeCampaigns.reduce((acc, c) => acc + (c.metrics?.views || 0), 0).toLocaleString()}
                 </p>
              </div>
           </div>
@@ -188,30 +186,30 @@ export default function ArtistMarketing({ user }: { user: any }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-[#222] mb-10 overflow-x-auto no-scrollbar font-display">
+      <div className="flex items-center gap-1 border-b border-[#222] mb-10 overflow-x-auto no-scrollbar">
         <button 
           onClick={() => setActiveTab('packages')}
-          className={`px-6 py-4 uppercase tracking-widest text-[10px] font-black whitespace-nowrap transition-all border-b-2 ${
-            activeTab === 'packages' ? 'border-[#ccff00] text-[#ccff00]' : 'border-transparent text-gray-400 hover:text-white'
+          className={`px-6 py-4 font-display uppercase tracking-widest text-[10px] font-black whitespace-nowrap transition-all border-b-2 ${
+            activeTab === 'packages' ? 'border-[#ccff00] text-[#ccff00]' : 'border-transparent text-gray-500 hover:text-white'
           }`}
         >
           Promotion Packages
         </button>
         <button 
-          onClick={() => setActiveTab('estimator')}
-          className={`px-6 py-4 uppercase tracking-widest text-[10px] font-black whitespace-nowrap transition-all border-b-2 ${
-            activeTab === 'estimator' ? 'border-[#ccff00] text-[#ccff00]' : 'border-transparent text-gray-400 hover:text-white'
+          onClick={() => setActiveTab('campaigns')}
+          className={`px-6 py-4 font-display uppercase tracking-widest text-[10px] font-black whitespace-nowrap transition-all border-b-2 ${
+            activeTab === 'campaigns' ? 'border-[#ccff00] text-[#ccff00]' : 'border-transparent text-gray-500 hover:text-white'
           }`}
         >
-          Reach Estimator
+          My Campaigns ({activeCampaigns.length})
         </button>
         <button 
-          onClick={() => setActiveTab('campaigns')}
-          className={`px-6 py-4 uppercase tracking-widest text-[10px] font-black whitespace-nowrap transition-all border-b-2 ${
-            activeTab === 'campaigns' ? 'border-[#ccff00] text-[#ccff00]' : 'border-transparent text-gray-400 hover:text-white'
+          onClick={() => setActiveTab('estimator')}
+          className={`px-6 py-4 font-display uppercase tracking-widest text-[10px] font-black whitespace-nowrap transition-all border-b-2 ${
+            activeTab === 'estimator' ? 'border-[#ccff00] text-[#ccff00]' : 'border-transparent text-gray-500 hover:text-white'
           }`}
         >
-          View Campaigns ({activeCampaigns.length})
+          AI Tool: Estimate Reach
         </button>
       </div>
 
@@ -294,12 +292,12 @@ export default function ArtistMarketing({ user }: { user: any }) {
           >
             {activeCampaigns.length === 0 ? (
               <div className="py-20 text-center border border-dashed border-[#222]">
-                <p className="text-gray-500 font-display uppercase tracking-widest text-xs">No active promotion campaigns found</p>
+                <p className="text-gray-500 font-display uppercase tracking-widest text-xs">No promotion campaigns found</p>
                 <button 
                   onClick={() => setActiveTab('packages')}
                   className="mt-4 text-[#ccff00] text-[10px] font-display uppercase font-bold tracking-widest underline decoration-[#ccff00]/30 underline-offset-4"
                 >
-                  Explore promotion options
+                  Start your first campaign
                 </button>
               </div>
             ) : (
@@ -311,7 +309,7 @@ export default function ArtistMarketing({ user }: { user: any }) {
                         {camp.type === 'YouTube' ? <Youtube size={20} /> : camp.type === 'Reels' ? <Instagram size={20} /> : <Music size={20} />}
                       </div>
                       <div>
-                        <h3 className="font-display uppercase font-black text-white leading-tight">{camp.songTitle}</h3>
+                        <h3 className="font-display uppercase font-black text-white">{camp.songTitle}</h3>
                         <div className="flex items-center gap-3 mt-1">
                           <span className="text-[10px] text-gray-500 uppercase tracking-widest">{camp.type} Ads</span>
                           <span className={`text-[8px] px-1.5 py-0.5 rounded uppercase font-bold tracking-widest ${
@@ -323,14 +321,14 @@ export default function ArtistMarketing({ user }: { user: any }) {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full md:w-auto overflow-hidden">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full md:w-auto">
                     <div className="flex flex-col">
                       <span className="text-[8px] text-gray-500 uppercase tracking-widest font-black mb-1">Views</span>
-                      <span className="text-lg font-display font-black text-white truncate max-w-[80px]">{(camp.metrics?.views || 0).toLocaleString()}</span>
+                      <span className="text-lg font-display font-black text-white">{(camp.metrics?.views || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[8px] text-gray-500 uppercase tracking-widest font-black mb-1">Clicks</span>
-                      <span className="text-lg font-display font-black text-white truncate max-w-[80px]">{(camp.metrics?.clicks || 0).toLocaleString()}</span>
+                      <span className="text-lg font-display font-black text-white">{(camp.metrics?.clicks || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[8px] text-gray-500 uppercase tracking-widest font-black mb-1">Conv.</span>
@@ -338,12 +336,12 @@ export default function ArtistMarketing({ user }: { user: any }) {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[8px] text-gray-500 uppercase tracking-widest font-black mb-1">ROI</span>
-                      <span className="text-lg font-display font-black text-[#ccff00]">{camp.metrics?.roi || 1}x</span>
+                      <span className="text-lg font-display font-black text-[#9d4edd]">{camp.metrics?.roi || 1}x</span>
                     </div>
                   </div>
                   <div className="w-full md:w-auto mt-4 md:mt-0">
                      <button className="w-full md:w-auto px-6 py-3 bg-white/5 border border-white/10 hover:bg-[#ccff00] hover:text-black transition-all text-[10px] font-display uppercase font-black tracking-widest inline-flex items-center justify-center gap-2">
-                       Full Stats <ExternalLink size={12} />
+                       Full Analytics <ExternalLink size={12} />
                      </button>
                   </div>
                 </div>
@@ -366,15 +364,14 @@ export default function ArtistMarketing({ user }: { user: any }) {
                </div>
                
                <div className="relative z-10">
-                  <h2 className="text-3xl font-display uppercase font-black text-white italic mb-2 tracking-tighter">Reach <span className="text-[#ccff00]">Estimator</span></h2>
-                  <p className="text-gray-400 text-xs mb-10 uppercase tracking-widest leading-loose">Calculate your expected impact with pro marketing</p>
+                  <h2 className="text-3xl font-display uppercase font-black text-white italic mb-2">Campaign <span className="text-[#ccff00]">Estimator</span></h2>
+                  <p className="text-gray-400 text-sm mb-10 uppercase tracking-widest">Select target and budget to calculate estimated AI reach</p>
 
                   <div className="grid md:grid-cols-2 gap-12">
-                     <div className="space-y-10">
-                       {/* PLATFORM SELECTOR */}
+                     <div className="space-y-8">
                        <div>
-                          <label className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-4 block">Select Platform</label>
-                          <div className="flex gap-4">
+                         <label className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-4 block">Target Platform</label>
+                         <div className="flex gap-4">
                             <button 
                               onClick={() => setEstimateType('youtube')}
                               className={`flex-1 flex flex-col items-center gap-3 p-6 border transition-all ${
@@ -391,86 +388,59 @@ export default function ArtistMarketing({ user }: { user: any }) {
                               }`}
                             >
                                <Instagram size={32} />
-                               <span className="text-[10px] font-display uppercase font-black tracking-[0.2em]">Reels</span>
+                               <span className="text-[10px] font-display uppercase font-black tracking-[0.2em]">Insta Reels</span>
                             </button>
-                          </div>
+                         </div>
                        </div>
 
-                       {/* SLIDERS */}
-                       <div className="space-y-8">
-                         {estimateType === 'youtube' ? (
-                            <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-                               <div className="flex items-center justify-between mb-4">
-                                 <label className="text-[10px] font-display uppercase tracking-widest text-[#FF0000] font-black">YouTube Ad Budget</label>
-                                 <span className="text-3xl font-display font-black text-white tracking-tighter italic">₹{ytBudget.toLocaleString()}</span>
-                               </div>
-                               <input 
-                                 type="range"
-                                 min="199"
-                                 max="100000"
-                                 step="100"
-                                 value={ytBudget}
-                                 onChange={(e) => setYTBudget(Number(e.target.value))}
-                                 className="w-full h-1 bg-[#222] rounded-lg appearance-none cursor-pointer accent-[#FF0000]"
-                               />
-                            </div>
-                         ) : (
-                            <div className="animate-in fade-in slide-in-from-right-2 duration-300">
-                               <div className="flex items-center justify-between mb-4">
-                                 <label className="text-[10px] font-display uppercase tracking-widest text-[#E1306C] font-black">Reels Ad Budget</label>
-                                 <span className="text-3xl font-display font-black text-white tracking-tighter italic">₹{reelsBudget.toLocaleString()}</span>
-                               </div>
-                               <input 
-                                 type="range"
-                                 min="799"
-                                 max="100000"
-                                 step="100"
-                                 value={reelsBudget}
-                                 onChange={(e) => setReelsBudget(Number(e.target.value))}
-                                 className="w-full h-1 bg-[#222] rounded-lg appearance-none cursor-pointer accent-[#E1306C]"
-                               />
-                            </div>
-                         )}
-                         <div className="flex justify-between text-[8px] text-gray-600 font-display uppercase tracking-tighter font-black">
-                           <span>Micro Test</span>
-                           <span>Viral Impact</span>
+                       <div>
+                         <div className="flex items-center justify-between mb-4">
+                           <label className="text-[10px] font-display uppercase tracking-widest text-gray-500 block">Campaign Budget</label>
+                           <span className="text-2xl font-display font-black text-white">₹{budget.toLocaleString()}</span>
+                         </div>
+                         <input 
+                           type="range"
+                           min="500"
+                           max="50000"
+                           step="500"
+                           value={budget}
+                           onChange={(e) => setBudget(Number(e.target.value))}
+                           className="w-full h-1 bg-[#222] rounded-lg appearance-none cursor-pointer accent-[#ccff00]"
+                         />
+                         <div className="flex justify-between mt-2 text-[9px] text-gray-600 font-sans uppercase tracking-widest">
+                           <span>₹500</span>
+                           <span>₹50,000+</span>
                          </div>
                        </div>
                      </div>
 
-                     {/* AI IMPACT VIEW */}
-                     <div className="bg-black/50 border border-[#222] p-8 flex flex-col justify-center text-center relative overflow-hidden group">
-                        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#ccff00] to-transparent opacity-50"></div>
-                        <RefreshCcw className="mx-auto text-[#ccff00] mb-4 animate-spin-slow opacity-50" size={20} />
-                        <h3 className="text-[10px] font-display uppercase tracking-[0.3em] text-gray-500 mb-8 font-black">Predicted Reach</h3>
+                     <div className="bg-black/50 border border-[#222] p-8 flex flex-col justify-center text-center">
+                        <RefreshCcw className="mx-auto text-[#ccff00] mb-4 animate-spin-slow" size={24} />
+                        <h3 className="text-sm font-display uppercase tracking-[0.2em] text-gray-500 mb-6">AI Estimated Impact</h3>
                         
-                        <div className="mb-10">
-                           <p className="text-5xl lg:text-6xl font-display font-black text-white tracking-tighter mb-2 group-hover:scale-105 transition-transform duration-500">
-                             {estimateType === 'youtube' ? getYTReach(ytBudget) : getReelsReach(reelsBudget)}
+                        <div className="mb-8">
+                           <p className="text-5xl font-display font-black text-[#ccff00] tracking-tighter mb-2">
+                             {getEstimate(estimateType, budget)}
                            </p>
-                           <p className={`text-[10px] uppercase tracking-widest font-black ${estimateType === 'youtube' ? 'text-[#FF0000]' : 'text-[#E1306C]'}`}>
-                             Estimated {estimateType === 'youtube' ? 'Video Views' : 'Viral Engagement'}
-                           </p>
+                           <p className="text-[10px] text-gray-600 uppercase tracking-widest font-bold">Estimated Real Views</p>
                         </div>
 
-                        <div className="space-y-4 pt-8 border-t border-[#222]">
-                           <div className="flex justify-between text-[9px] uppercase tracking-[0.2em] font-sans">
-                              <span className="text-gray-500">Source</span>
-                              <span className="text-white font-bold">{estimateType === 'youtube' ? 'Google Ads Network' : 'Meta Discovery Ads'}</span>
+                        <div className="space-y-4 pt-6 border-t border-[#222]">
+                           <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                              <span className="text-gray-500">Fast Delivery</span>
+                              <span className="text-white">Active</span>
                            </div>
-                           <div className="flex justify-between text-[9px] uppercase tracking-[0.2em] font-sans">
-                              <span className="text-gray-500">Confidence</span>
-                              <span className="text-[#ccff00]">98% Accurate</span>
+                           <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                              <span className="text-gray-500">Ad Placement</span>
+                              <span className="text-white">Professional</span>
                            </div>
                         </div>
 
                         <button 
                           onClick={handleCustomPromo}
-                          className={`w-full py-4 mt-10 font-display uppercase font-black tracking-widest text-[10px] transition-all shadow-xl ${
-                            estimateType === 'youtube' ? 'bg-[#FF0000] text-white hover:bg-white hover:text-black' : 'bg-[#E1306C] text-white hover:bg-white hover:text-black'
-                          }`}
+                          className="w-full bg-[#ccff00] text-black py-4 mt-8 font-display uppercase font-black tracking-widest text-[10px] hover:bg-white transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
                         >
-                          Request Campaign Strategy
+                          Request This Campaign
                         </button>
                      </div>
                   </div>

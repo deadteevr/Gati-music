@@ -346,6 +346,7 @@ export default function LandingPage() {
                     <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">About</Link>
                     <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Blog</Link>
                     <Link to="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Terms</Link>
+                    <Link to="/refund-policy" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Refunds</Link>
                     <Link to="/privacy" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-display uppercase tracking-widest text-gray-400 py-2">Privacy</Link>
                   </div>
                 </div>
@@ -684,6 +685,88 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Marketing & Promotion Section */}
+      <section id="marketing" className="py-32 px-6 md:px-12 bg-gradient-to-t from-[#0A0A0A] via-[#050505] to-[#0A0A0A] relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent pointer-events-none"></div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              <div className="inline-block px-4 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-6">
+                Artist Growth Engine
+              </div>
+              <h2 className="text-4xl md:text-6xl font-display uppercase tracking-tighter text-white mb-8 leading-tight">
+                Beyond Just <br/> <span className="text-[#B6FF00]">Distribution.</span>
+              </h2>
+              <p className="text-gray-400 font-sans text-lg mb-10 leading-relaxed max-w-xl">
+                Releasing your song is only the first step. Gati provides the tools and connections you need to actually get heard in India’s competitive music market.
+              </p>
+              
+              <div className="space-y-6">
+                {[
+                  { icon: <TrendingUp className="text-blue-400" />, title: "Spotify Playlisting", desc: "Priority pitching for official Spotify Editorial & algorithmic playlists." },
+                  { icon: <Music className="text-[#B6FF00]" />, title: "Instagram & Shorts", desc: "Get your audio library available for millions of creators on Reels & Shorts." },
+                  { icon: <Zap className="text-purple-400" />, title: "Official Artist Channel", desc: "Unlock the Official Artist (Note) badge on your YouTube channel instantly." }
+                ].map((promo, idx) => (
+                  <div key={idx} className="flex gap-4 group">
+                    <div className="w-12 h-12 shrink-0 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      {promo.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-white font-display uppercase tracking-widest text-sm mb-1">{promo.title}</h4>
+                      <p className="text-xs text-gray-500 font-sans">{promo.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="relative"
+            >
+              <div className="relative z-10 bg-gradient-to-br from-[#111] to-[#050505] border border-[#222] p-8 md:p-12 rounded-[2rem] shadow-2xl overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[80px] -z-10 animate-pulse"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#B6FF00]/5 blur-[80px] -z-10"></div>
+                
+                <h3 className="text-2xl font-display uppercase tracking-tighter text-white mb-6">Verified Artist Profiles</h3>
+                <div className="space-y-4 mb-10">
+                  <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-[#B6FF00]/30 transition-all">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><CheckCircle2 size={24} /></div>
+                    <span className="text-sm font-sans text-gray-300">Spotify Verified Badge</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-purple-500/30 transition-all">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Music size={24} /></div>
+                    <span className="text-sm font-sans text-gray-300">YouTube Official Artist Note</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-red-500/30 transition-all">
+                    <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400"><TrendingUp size={24} /></div>
+                    <span className="text-sm font-sans text-gray-300">Apple Music for Artists Access</span>
+                  </div>
+                </div>
+
+                <WhatsAppButton 
+                  text="Boost Your Release" 
+                  className="w-full bg-white text-black py-4 rounded-xl font-black shadow-[0_20px_50px_rgba(255,255,255,0.1)] hover:bg-[#B6FF00]" 
+                />
+              </div>
+              
+              {/* Decorative Floating Elements */}
+              <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-600/20 blur-2xl rounded-full animate-bounce" style={{ animationDuration: '4s' }}></div>
+              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#B6FF00]/10 blur-3xl rounded-full"></div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Dashboard Preview */}
       <section className="relative py-32 px-6 overflow-hidden bg-[#050505]">
         {/* Abstract Background for Dashboard */}
@@ -871,6 +954,7 @@ export default function LandingPage() {
             <div className="flex flex-col gap-2">
               <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
               <Link to="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link>
+              <Link to="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
             </div>
           </div>
         </div>

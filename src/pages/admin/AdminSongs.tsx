@@ -19,7 +19,7 @@ export default function AdminSongs() {
       list.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setSongs(list);
     }, (error) => {
-      console.error("AdminSongs: snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'submissions', false);
     });
     return unsub;
   }, []);

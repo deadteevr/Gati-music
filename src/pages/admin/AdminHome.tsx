@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Users, Music, Activity, PlayCircle, IndianRupee, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -41,7 +41,7 @@ export default function AdminHome() {
       
       setStats(s => ({ ...s, totalArtists: users.length, totalStreams: totalPlatformStreams, activeSubscriptions: activeSubs }));
     }, (error) => {
-      console.error("AdminHome: users snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'users', false);
     });
 
     // Fetch songs
@@ -59,7 +59,7 @@ export default function AdminHome() {
       const sortedSongs = snap.docs.map(d => ({id: d.id, ...d.data(), type: 'submission'})).sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5);
       setRecentActivity(sortedSongs);
     }, (error) => {
-      console.error("AdminHome: songs snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'submissions', false);
     });
 
     // Fetch withdrawals
@@ -71,7 +71,7 @@ export default function AdminHome() {
       });
       setStats(s => ({ ...s, pendingWithdrawals: pending }));
     }, (error) => {
-      console.error("AdminHome: withdrawals snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'withdrawals', false);
     });
 
     // Fetch global Royalties for Charts
@@ -118,7 +118,7 @@ export default function AdminHome() {
       setMonthlyEarningsData(formatData(earningsByMonth, 'earnings'));
       setMonthlyStreamsData(formatData(streamsByMonth, 'streams'));
     }, (error) => {
-      console.error("AdminHome: royalties snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'royalties', false);
     });
 
     // Fetch Feedback
@@ -126,7 +126,7 @@ export default function AdminHome() {
     const unsubFeedback = onSnapshot(qFeedback, (snap) => {
       setRecentFeedback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (error) => {
-      console.error("AdminHome: feedback snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'feedback', false);
     });
     
     return () => {
@@ -226,7 +226,7 @@ export default function AdminHome() {
       <div className="col-span-1 bg-[#111] p-6 border border-[#333]">
         <h2 className="text-lg font-display uppercase tracking-widest text-[#9d4edd] mb-6">Quick Actions</h2>
         <div className="flex flex-col gap-3">
-          <Link to="/admin/subscriptions" className="bg-[#ccff00] text-black border border-[#ccff00] hover:bg-white hover:border-white p-4 font-display uppercase tracking-widest text-xs text-center font-black transition-colors">Manage Plans</Link>
+          <Link to="/admin/artists" className="bg-[#ccff00] text-black border border-[#ccff00] hover:bg-white hover:border-white p-4 font-display uppercase tracking-widest text-xs text-center font-black transition-colors">Manage Artists & Plans</Link>
           <Link to="/admin/smart-links" className="bg-[#222] border border-[#333] hover:border-white text-white p-4 font-display uppercase tracking-widest text-xs text-center transition-colors">Manage Smart Links</Link>
           <Link to="/admin/songs" className="bg-[#222] border border-[#333] hover:border-white text-white p-4 font-display uppercase tracking-widest text-xs text-center transition-colors">View Submissions</Link>
           <Link to="/admin/notifications" className="bg-[#9d4edd] text-white p-4 font-display uppercase tracking-widest text-xs text-center font-bold hover:bg-[#7b2cbf] transition-colors">Send Announcement</Link>

@@ -19,7 +19,6 @@ const AdminWithdrawals = lazy(() => import('./admin/AdminWithdrawals'));
 const AdminSettings = lazy(() => import('./admin/AdminSettings'));
 const AdminTasks = lazy(() => import('./admin/AdminTasks'));
 const AdminMarketing = lazy(() => import('./admin/AdminMarketing'));
-const AdminSubscriptions = lazy(() => import('./admin/AdminSubscriptions'));
 const AdminSmartLinks = lazy(() => import('./admin/AdminSmartLinks'));
 
 export default function AdminPanel({ user, userData }: { user: any, userData: any }) {
@@ -31,6 +30,8 @@ export default function AdminPanel({ user, userData }: { user: any, userData: an
     const q = query(collection(db, 'feedback'), where('status', '==', 'new'));
     const unsub = onSnapshot(q, (snap) => {
       setHasNewFeedback(!snap.empty);
+    }, (error) => {
+      console.error("Feedback snapshot error:", error);
     });
     return unsub;
   }, []);
@@ -42,7 +43,6 @@ export default function AdminPanel({ user, userData }: { user: any, userData: an
   const navItems = [
     { name: "Dashboard", path: "/admin", icon: <Home size={18} /> },
     { name: "Artists", path: "/admin/artists", icon: <Users size={18} /> },
-    { name: "Subscriptions", path: "/admin/subscriptions", icon: <Zap size={18} /> },
     { name: "Smart Links", path: "/admin/smart-links", icon: <LinkIcon size={18} /> },
     { name: "Songs", path: "/admin/songs", icon: <Music size={18} /> },
     { name: "Tasks", path: "/admin/tasks", icon: <CheckSquare size={18} /> },
@@ -130,7 +130,6 @@ export default function AdminPanel({ user, userData }: { user: any, userData: an
               <Route path="/" element={<AdminHome />} />
               <Route path="/artists" element={<AdminArtists />} />
               <Route path="/artists/:uid" element={<AdminArtistProfile />} />
-              <Route path="/subscriptions" element={<AdminSubscriptions />} />
               <Route path="/smart-links" element={<AdminSmartLinks />} />
               <Route path="/songs" element={<AdminSongs />} />
               <Route path="/songs/:id" element={<AdminSongDetail />} />

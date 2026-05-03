@@ -18,7 +18,7 @@ export default function AdminWithdrawals() {
       setWithdrawals(list);
       setLoading(false);
     }, (error) => {
-      console.error("AdminWithdrawals: snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'withdrawals', false);
       setLoading(false);
     });
     return unsub;

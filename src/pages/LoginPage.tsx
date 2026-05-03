@@ -2,25 +2,27 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { loginWithEmail } from '../lib/auth';
+import { useGlobalError } from '../components/ErrorProvider';
 
 export default function LoginPage() {
+  const { showError } = useGlobalError();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
     try {
       await loginWithEmail(email, password);
     } catch (err: any) {
+      let message = "Authentication failed. Please try again.";
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError("Invalid credentials. Please check your email and password.");
+        message = "Invalid credentials. Please check your email and password.";
       } else {
-        setError(err.message || "Authentication failed. Please try again.");
+        message = err.message || "Authentication failed. Please try again.";
       }
+      showError(message, () => handleSubmit(e));
     } finally {
       setLoading(false);
     }
@@ -54,8 +56,6 @@ export default function LoginPage() {
             Enter your credentials to continue.
           </p>
           
-          {error && <div className="bg-red-500/10 border border-red-500 text-red-500 text-sm p-4 mb-6">{error}</div>}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <input 
               type="email" 

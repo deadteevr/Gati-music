@@ -17,7 +17,7 @@ import {
 import { useEffect } from 'react';
 
 const WHATSAPP_NUMBER = "+91 7626841258";
-const EMAIL_ADDRESS = "gatimusicdistribution@gmail.com";
+const EMAIL_ADDRESS = "gatimusic@gmail.com";
 
 export default function ContactPage() {
   useEffect(() => {
@@ -218,8 +218,14 @@ export default function ContactPage() {
         </section>
       </main>
 
-      <footer className="bg-[#050505] border-t border-[#1a1a1a] py-12 px-6 text-center">
-        <p className="text-gray-500 text-xs font-sans uppercase tracking-[0.2em] font-bold">
+      <footer className="bg-[#050505] border-t border-[#1a1a1a] py-12 px-6 text-center space-y-4">
+        <div className="flex justify-center gap-8 text-[10px] md:text-xs font-display uppercase tracking-[0.34em] text-gray-500 font-bold">
+          <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+          <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+          <Link to="/refund-policy" className="hover:text-white transition-colors text-[#B6FF00]">Refunds</Link>
+          <Link to="/faq" className="hover:text-white transition-colors">FAQ</Link>
+        </div>
+        <p className="text-gray-600 text-[10px] font-sans uppercase tracking-[0.2em] pt-4">
           © 2026 Gati Music Distribution. Direct Support. Worldwide Freedom.
         </p>
       </footer>

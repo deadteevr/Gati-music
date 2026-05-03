@@ -9,7 +9,18 @@
         "role": { "type": "string", "enum": ["artist", "admin"] },
         "name": { "type": "string" },
         "email": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "subscription": {
+          "type": "object",
+          "properties": {
+            "planType": { "type": "string", "enum": ["Basic", "Monthly", "Yearly", "Free"] },
+            "startDate": { "type": "string" },
+            "expiryDate": { "type": "string" },
+            "status": { "type": "string", "enum": ["Active", "Expired"] },
+            "paymentStatus": { "type": "string" },
+            "uploadCount": { "type": "integer" }
+          }
+        }
       },
       "required": ["uid", "role", "name", "email", "createdAt"]
     },

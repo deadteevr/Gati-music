@@ -10,8 +10,13 @@ export default function AdminArtistProfile() {
   const [loading, setLoading] = useState(true);
   
   // Plan Editor State
-  const [planType, setPlanType] = useState('Free');
-  const [planExpiry, setPlanExpiry] = useState('');
+  const [subData, setSubData] = useState({
+    planType: 'Free',
+    status: 'Expired',
+    startDate: '',
+    expiryDate: '',
+    uploadCount: 0
+  });
   const [updatingPlan, setUpdatingPlan] = useState(false);
 
   // Streams Editor State
@@ -35,8 +40,16 @@ export default function AdminArtistProfile() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setArtist(data);
-        setPlanType(data.plan || 'Free');
-        setPlanExpiry(data.planExpiry || '');
+        
+        const sub = data.subscription || {};
+        setSubData({
+          planType: sub.planType || data.plan || 'Free',
+          status: sub.status || (data.plan && data.plan !== 'Free' ? 'Active' : 'Expired'),
+          startDate: sub.startDate || data.createdAt || '',
+          expiryDate: sub.expiryDate || data.planExpiry || '',
+          uploadCount: sub.uploadCount || 0
+        });
+
         setStreams({
           spotify: data.streams?.spotify || 0,
           youtube: data.streams?.youtube || 0,
@@ -45,24 +58,33 @@ export default function AdminArtistProfile() {
         });
       }
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${uid}`, false);
+      setLoading(false);
     });
 
     // Songs
     const qSongs = query(collection(db, 'submissions'), where('uid', '==', uid));
     const unsubSongs = onSnapshot(qSongs, (snap) => {
       setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'submissions', false);
     });
 
     // Royalties
     const qRoyalties = query(collection(db, 'royalties'), where('uid', '==', uid));
     const unsubRoyalties = onSnapshot(qRoyalties, (snap) => {
       setRoyalties(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'royalties', false);
     });
 
     // Withdrawals
     const qWithdrawals = query(collection(db, 'withdrawals'), where('uid', '==', uid));
     const unsubWithdrawals = onSnapshot(qWithdrawals, (snap) => {
       setWithdrawals(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'withdrawals', false);
     });
 
     return () => {
@@ -76,11 +98,35 @@ export default function AdminArtistProfile() {
   const handleUpdatePlan = async () => {
     setUpdatingPlan(true);
     try {
+      // Calculate auto-expiry if dates are missing for timed plans
+      let finalExpiry = subData.expiryDate;
+      const now = new Date();
+      
+      if (!finalExpiry) {
+        if (subData.planType === 'Monthly') {
+          finalExpiry = new Date(now.setMonth(now.getMonth() + 1)).toISOString();
+        } else if (subData.planType === 'Yearly') {
+          finalExpiry = new Date(now.setFullYear(now.getFullYear() + 1)).toISOString();
+        }
+      }
+
       await updateDoc(doc(db, 'users', uid!), {
-        plan: planType,
-        planExpiry: planExpiry
+        subscription: {
+          planType: subData.planType,
+          status: subData.status,
+          startDate: subData.startDate || new Date().toISOString(),
+          expiryDate: finalExpiry,
+          uploadCount: Number(subData.uploadCount),
+          paymentStatus: artist.subscription?.paymentStatus || 'Manual'
+        }
       });
-      alert('Plan updated successfully');
+      
+      // Update local state to reflect possible auto-expiry
+      if (finalExpiry !== subData.expiryDate) {
+        setSubData(prev => ({ ...prev, expiryDate: finalExpiry }));
+      }
+      
+      alert('Plan updated successfully. Single source of truth (subscription) is now used.');
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `users/${uid}`);
     } finally {
@@ -131,16 +177,16 @@ export default function AdminArtistProfile() {
         <div className="bg-[#111] border border-[#333] p-6 space-y-6">
           <div className="border-b border-[#333] pb-4">
             <h2 className="text-lg font-display uppercase tracking-widest text-[#9d4edd]">Plan Management</h2>
-            <p className="text-xs text-gray-500 font-sans">Update the artist's subscription tier</p>
+            <p className="text-xs text-gray-500 font-sans">Update the artist's subscription tier and limits</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Plan Type</label>
               <select 
-                value={planType} 
-                onChange={(e) => setPlanType(e.target.value)}
-                className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd]"
+                value={subData.planType} 
+                onChange={(e) => setSubData({...subData, planType: e.target.value})}
+                className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd] text-xs"
               >
                 <option value="Free">Free</option>
                 <option value="Basic">Basic</option>
@@ -148,25 +194,65 @@ export default function AdminArtistProfile() {
                 <option value="Yearly">Yearly Pro</option>
               </select>
             </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-display uppercase tracking-widest text-gray-400">Status</label>
+              <select 
+                value={subData.status} 
+                onChange={(e) => setSubData({...subData, status: e.target.value as any})}
+                className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd] text-xs"
+              >
+                <option value="Active">Active</option>
+                <option value="Expired">Expired</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-display uppercase tracking-widest text-gray-400">Start Date</label>
+              <input 
+                type="date" 
+                value={subData.startDate ? new Date(subData.startDate).toISOString().split('T')[0] : ''} 
+                onChange={(e) => setSubData({...subData, startDate: e.target.value})}
+                className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd] text-xs"
+              />
+            </div>
             
             <div className="flex flex-col gap-2">
               <label className="text-xs font-display uppercase tracking-widest text-gray-400">Expiry Date</label>
               <input 
                 type="date" 
-                value={planExpiry} 
-                onChange={(e) => setPlanExpiry(e.target.value)}
-                className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd]"
+                value={subData.expiryDate ? new Date(subData.expiryDate).toISOString().split('T')[0] : ''} 
+                onChange={(e) => setSubData({...subData, expiryDate: e.target.value})}
+                className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd] text-xs"
               />
             </div>
-
-            <button 
-              onClick={handleUpdatePlan}
-              disabled={updatingPlan}
-              className="w-full bg-white text-black font-display font-bold uppercase tracking-widest py-3 hover:bg-[#9d4edd] hover:text-white transition-colors flex items-center justify-center gap-2"
-            >
-              <Save size={16} /> Update Plan
-            </button>
           </div>
+
+          <div className="flex flex-col gap-2">
+            <div className='flex justify-between items-center'>
+              <label className="text-xs font-display uppercase tracking-widest text-gray-400">Upload Usage</label>
+              {subData.planType === 'Basic' && (
+                <span className='text-[10px] text-gray-500 uppercase tracking-widest font-sans'>(Artist Limit: 1)</span>
+              )}
+            </div>
+            <input 
+              type="number" 
+              value={subData.uploadCount} 
+              onChange={(e) => setSubData({...subData, uploadCount: Number(e.target.value)})}
+              className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-[#9d4edd] text-xs"
+              placeholder="Songs uploaded"
+            />
+          </div>
+
+          <button 
+            onClick={handleUpdatePlan}
+            disabled={updatingPlan}
+            className="w-full bg-white text-black font-display font-bold uppercase tracking-widest py-3 hover:bg-[#9d4edd] hover:text-white transition-colors flex items-center justify-center gap-2"
+          >
+            <Save size={16} /> Save Subscription Changes
+          </button>
         </div>
 
         {/* Streams Analytics Override */}

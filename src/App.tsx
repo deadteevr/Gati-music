@@ -16,7 +16,10 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const FAQPage = lazy(() => import('./pages/FAQPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const BlogPage = lazy(() => import('./pages/BlogPage'));
+const RefundPage = lazy(() => import('./pages/RefundPage'));
 const SmartLink = lazy(() => import('./pages/artist/SmartLink'));
+
+import { ErrorProvider } from './components/ErrorProvider';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -82,24 +85,27 @@ export default function App() {
 
   return (
     <Router>
-      <Suspense fallback={<PremiumLoader />}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
-          <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} userData={userData} /> : <Navigate to="/login" replace />} />
-          <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/faq" element={<FAQPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:slug" element={<BlogPage />} />
-          <Route path="/release/:id" element={<SmartLink />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+      <ErrorProvider>
+        <Suspense fallback={<PremiumLoader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
+            <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} userData={userData} /> : <Navigate to="/login" replace />} />
+            <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogPage />} />
+            <Route path="/refund-policy" element={<RefundPage />} />
+            <Route path="/release/:id" element={<SmartLink />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </ErrorProvider>
     </Router>
   );
 }

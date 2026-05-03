@@ -163,8 +163,13 @@ export default function TermsPage() {
         </motion.div>
       </main>
 
-      <footer className="bg-[#050505] border-t border-[#1a1a1a] py-12 px-6 text-center">
-        <p className="text-gray-500 text-xs font-sans">
+      <footer className="bg-[#050505] border-t border-[#1a1a1a] py-12 px-6 text-center space-y-4">
+        <div className="flex justify-center gap-8 text-xs font-display uppercase tracking-widest text-gray-500">
+          <Link to="/refund-policy" className="hover:text-[#B6FF00] transition-colors">Refund Policy</Link>
+          <Link to="/privacy" className="hover:text-[#B6FF00] transition-colors">Privacy Policy</Link>
+          <Link to="/contact" className="hover:text-[#B6FF00] transition-colors">Contact Support</Link>
+        </div>
+        <p className="text-gray-600 text-[10px] font-sans uppercase tracking-[0.2em]">
           © 2026 Gati Music Distribution. All rights reserved. Professional Music Distribution for Independent Artists.
         </p>
       </footer>

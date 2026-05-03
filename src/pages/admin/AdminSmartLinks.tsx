@@ -45,18 +45,6 @@ export default function AdminSmartLinks() {
     }
   };
 
-  const autoGenerateLinks = (title: string, artist: string) => {
-    const slug = `${title}-${artist}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    setEditLinks({
-      spotify: `https://open.spotify.com/search/${encodeURIComponent(title + ' ' + artist)}`,
-      appleMusic: `https://music.apple.com/search?term=${encodeURIComponent(title + ' ' + artist)}`,
-      youtubeMusic: `https://music.youtube.com/search?q=${encodeURIComponent(title + ' ' + artist)}`,
-      deezer: `https://www.deezer.com/search/${encodeURIComponent(title + ' ' + artist)}`,
-      amazonMusic: `https://music.amazon.com/search/${encodeURIComponent(title + ' ' + artist)}`,
-      instagram: `https://www.instagram.com/reels/audio/`
-    });
-  };
-
   return (
     <div className="space-y-8">
       <div>
@@ -131,9 +119,6 @@ export default function AdminSmartLinks() {
                     <span className="text-[10px] uppercase font-display tracking-widest text-gray-500">Store Integrations</span>
                     {editingId === release.id ? (
                       <div className="flex gap-3">
-                        <button onClick={() => autoGenerateLinks(release.title, release.mainArtist)} className="text-purple-400 flex items-center gap-1 text-[10px] font-display uppercase font-black tracking-widest hover:text-white transition-colors">
-                          <Zap size={14} /> Auto-fill Search Links
-                        </button>
                         <button onClick={() => saveLinks(release.id)} className="text-[#ccff00] flex items-center gap-1 text-[10px] font-display uppercase font-black tracking-widest">
                           <Check size={14} /> Save Changes
                         </button>

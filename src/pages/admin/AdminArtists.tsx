@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link } from 'react-router-dom';
@@ -53,6 +53,14 @@ export default function AdminArtists() {
         newArtist.password
       );
       const newUid = userCredential.user.uid;
+      
+      // Send Firebase Email Verification
+      try {
+        await sendEmailVerification(userCredential.user);
+        console.log("Firebase verification email sent to", newArtist.email);
+      } catch (verifErr) {
+        console.error("Failed to send Firebase verification email", verifErr);
+      }
 
       await setDoc(doc(db, 'users', newUid), {
         uid: newUid,
@@ -62,9 +70,9 @@ export default function AdminArtists() {
         role: 'artist',
         subscription: {
           planType: newArtist.plan,
-          expiryDate: newArtist.planExpiry ? newArtist.planExpiry : null,
-          status: (newArtist.plan === 'Free') ? 'Expired' : 'Active',
           startDate: new Date().toISOString(),
+          expiryDate: newArtist.planExpiry || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'Active',
           paymentStatus: 'Manual',
           uploadCount: 0
         },
@@ -230,14 +238,14 @@ export default function AdminArtists() {
                 </td>
                 <td className="px-6 py-4">
                   <span className="bg-[#222] px-2 py-1 text-xs uppercase tracking-widest text-[#9d4edd] font-bold border border-[#333]">
-                    {artist.subscription?.planType || artist.plan || 'Free'}
+                    {artist.subscription?.planType || 'Free'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`text-xs uppercase tracking-widest font-bold ${
-                    (artist.subscription?.status === 'Active') ? 'text-green-400' : 'text-red-400'
+                    artist.subscription?.status === 'Expired' ? 'text-red-500' : 'text-green-400'
                   }`}>
-                    {artist.subscription?.status || 'Inactive'}
+                    {artist.subscription?.status || 'Active'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">

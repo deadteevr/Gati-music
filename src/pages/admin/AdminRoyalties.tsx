@@ -21,7 +21,7 @@ export default function AdminRoyalties() {
     const unsubUsers = onSnapshot(qUsers, (snap) => {
       setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
     }, (error) => {
-      console.error("AdminRoyalties: users snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'users', false);
     });
 
     // Fetch reports for table
@@ -31,7 +31,7 @@ export default function AdminRoyalties() {
       list.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setReports(list);
     }, (error) => {
-      console.error("AdminRoyalties: reports snapshot error", error);
+      handleFirestoreError(error, OperationType.LIST, 'royalties', false);
     });
 
     return () => {

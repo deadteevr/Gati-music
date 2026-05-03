@@ -36,7 +36,7 @@ async function startServer() {
     try {
       if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         await transporter.sendMail({
-          from: process.env.EMAIL_FROM || '"Gati Music Distribution" <gatimusicdistribution@gmail.com>',
+          from: process.env.EMAIL_FROM || '"Gati Music" <notifications@gatimusic.in>',
           to,
           subject,
           text,
