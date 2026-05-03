@@ -112,14 +112,20 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     if (!loading) return;
 
     if (audioStatus === 'uploading' || coverStatus === 'uploading') {
-      setUploadMessage("Uploading assets...");
       const parts = [];
-      if (audioProgress >= 0) parts.push(audioProgress);
-      if (coverProgress >= 0) parts.push(coverProgress);
+      // If status is uploading, we expect progress to be at least 0.
+      // If it's still -1, we assume 1% to show it's starting.
+      const trackAudio = audioStatus === 'uploading' ? Math.max(0, audioProgress === -1 ? 1 : audioProgress) : (audioStatus === 'success' ? 100 : null);
+      const trackCover = coverStatus === 'uploading' ? Math.max(0, coverProgress === -1 ? 1 : coverProgress) : (coverStatus === 'success' ? 100 : null);
+      
+      if (trackAudio !== null) parts.push(trackAudio);
+      if (trackCover !== null) parts.push(trackCover);
       
       if (parts.length > 0) {
-        const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
-        setUploadProgress(avg);
+        let avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+        // Cap at 99 so it doesn't look finished until the server also finishes
+        setUploadProgress(Math.min(99, avg));
+        setUploadMessage("Uploading assets...");
       }
     } else if (audioStatus === 'success' && coverStatus === 'success') {
       setUploadProgress(95);
@@ -258,7 +264,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
         console.log(`Starting Cloudinary upload for ${type}...`);
         setStatus('uploading');
-        setProgress(0); // Ensure it starts at 0
+        setProgress(0); 
 
         const formDataCloud = new FormData();
         formDataCloud.append('file', file);
@@ -266,22 +272,24 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         formDataCloud.append('folder', `gati/${auth.currentUser?.uid}`);
 
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`);
+        // Add a timeout of 10 minutes for large files
+        xhr.timeout = 600000; 
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${type === 'audio' ? 'video' : 'image'}/upload`);
 
         return new Promise<string>((resolve, reject) => {
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
               const percent = (e.loaded / e.total) * 100;
-              console.log(`${type} upload progress: ${Math.round(percent)}%`);
               setProgress(percent);
             }
           };
 
           xhr.onload = () => {
-            if (xhr.status === 200) {
+            if (xhr.status === 200 || xhr.status === 201) {
               const res = JSON.parse(xhr.responseText);
               console.log(`${type} upload success: ${res.secure_url}`);
               setStatus('success');
+              setProgress(100);
               resolve(res.secure_url);
             } else {
               console.error(`${type} upload failed status ${xhr.status}:`, xhr.responseText);
@@ -290,10 +298,15 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             }
           };
 
+          xhr.ontimeout = () => {
+            setStatus('error');
+            reject(new Error('Upload timed out. Please check your internet connection and try again.'));
+          };
+
           xhr.onerror = (err) => {
             console.error(`${type} upload network error:`, err);
             setStatus('error');
-            reject(new Error('Network Error during Cloudinary upload'));
+            reject(new Error('Network Error: Could not connect to Cloudinary. Check your internet or CORS settings.'));
           };
 
           xhr.send(formDataCloud);
@@ -305,24 +318,32 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         const storageRef = ref(storage, path);
         const uploadTask = uploadBytesResumable(storageRef, file);
         setStatus('uploading');
-        setProgress(0); // Ensure it starts at 0
+        setProgress(0); 
 
         return new Promise<string>((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            uploadTask.cancel();
+            setStatus('error');
+            reject(new Error("Firebase upload timed out. This often happens due to CORS policy on new domains."));
+          }, 600000);
+
           uploadTask.on('state_changed',
             (snapshot) => {
               const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              console.log(`${type} upload progress: ${Math.round(progress)}%`);
               setProgress(progress);
             },
             (error) => {
+              clearTimeout(timeoutId);
               console.error(`${type} upload error:`, error);
               setStatus('error');
               reject(error);
             },
             async () => {
+              clearTimeout(timeoutId);
               const url = await getDownloadURL(uploadTask.snapshot.ref);
               console.log(`${type} upload success: ${url}`);
               setStatus('success');
+              setProgress(100);
               resolve(url);
             }
           );
