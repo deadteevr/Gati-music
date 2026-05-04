@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -19,7 +18,6 @@ try {
   db = getFirestore(app);
 }
 export { db };
-export const storage = getStorage(app);
 
 // CRITICAL DIRECTIVE: Error Handling Spec for Firestore Operations
 export enum OperationType {

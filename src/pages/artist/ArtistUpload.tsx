@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth, handleFirestoreError, OperationType } from '../../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert, Mail } from 'lucide-react';
 import { geminiService } from '../../services/geminiService';
@@ -64,6 +63,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
   const [coverProgress, setCoverProgress] = useState(-1);
   const [audioStatus, setAudioStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [coverStatus, setCoverStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [stuckAtZero, setStuckAtZero] = useState(false);
 
   const [processingAI, setProcessingAI] = useState(false);
   const [rawCredits, setRawCredits] = useState("");
@@ -113,8 +113,6 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
     if (audioStatus === 'uploading' || coverStatus === 'uploading') {
       const parts = [];
-      // If status is uploading, we expect progress to be at least 0.
-      // If it's still -1, we assume 1% to show it's starting.
       const trackAudio = audioStatus === 'uploading' ? Math.max(0, audioProgress === -1 ? 1 : audioProgress) : (audioStatus === 'success' ? 100 : null);
       const trackCover = coverStatus === 'uploading' ? Math.max(0, coverProgress === -1 ? 1 : coverProgress) : (coverStatus === 'success' ? 100 : null);
       
@@ -123,7 +121,20 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
       
       if (parts.length > 0) {
         let avg = parts.reduce((a, b) => a + b, 0) / parts.length;
-        // Cap at 99 so it doesn't look finished until the server also finishes
+        
+        // Stuck at 0 check
+        if (avg <= 1 && loading) {
+          const timeout = setTimeout(() => {
+            if (uploadProgress !== undefined && uploadProgress <= 1) {
+              setStuckAtZero(true);
+              setUploadMessage("Connection throttled. Checking CORS...");
+            }
+          }, 8000);
+          return () => clearTimeout(timeout);
+        } else {
+          setStuckAtZero(false);
+        }
+
         setUploadProgress(Math.min(99, avg));
         setUploadMessage("Uploading assets...");
       }
@@ -191,8 +202,8 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
   const validateCoverFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['png', 'jpg', 'jpeg', 'pdf'].includes(ext || '')) {
-      throw new Error("Invalid cover format! Please upload a PNG, JPG, JPEG, or PDF file.");
+    if (!['png', 'jpg', 'jpeg'].includes(ext || '')) {
+      throw new Error("Invalid cover format! Please upload a PNG, JPG, or JPEG file.");
     }
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
@@ -253,13 +264,13 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         if (!isValidUrl(finalCoverUrl)) throw new Error("Please provide a valid, publicly accessible URL for your cover artwork.");
       }
 
-      // Upload Function (Cloudinary vs Firebase)
+      // Upload Function (Cloudinary)
       const uploadToCloudinary = async (file: File, type: 'audio' | 'image', setProgress: (p: number) => void, setStatus: (s: any) => void) => {
         const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
         if (!cloudName || !uploadPreset) {
-          throw new Error("Cloudinary not configured correctly. Please check VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.");
+          throw new Error("Cloudinary not configured correctly. Please check VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in your environment variables.");
         }
 
         console.log(`Starting Cloudinary upload for ${type}...`);
@@ -274,7 +285,10 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         const xhr = new XMLHttpRequest();
         // Add a timeout of 10 minutes for large files
         xhr.timeout = 600000; 
-        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${type === 'audio' ? 'video' : 'image'}/upload`);
+        
+        // Audio files must use resource_type: "video" to be accepted by Cloudinary if they are mp3/wav/m4a
+        const resourceType = type === 'audio' ? 'video' : 'image';
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
 
         return new Promise<string>((resolve, reject) => {
           xhr.upload.onprogress = (e) => {
@@ -306,70 +320,23 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
           xhr.onerror = (err) => {
             console.error(`${type} upload network error:`, err);
             setStatus('error');
-            reject(new Error('Network Error: Could not connect to Cloudinary. Check your internet or CORS settings.'));
+            const errorMsg = 'Network Error: Could not connect to Cloudinary. This happens if the domain gatimusic.in is not allowlisted in your Cloudinary Settings > Security > Restricted allowed referrers.';
+            reject(new Error(errorMsg));
           };
 
           xhr.send(formDataCloud);
         });
       };
 
-      const uploadToFirebase = (file: File, path: string, setProgress: (p: number) => void, setStatus: (s: any) => void, type: string) => {
-        console.log(`Starting Firebase Storage upload for ${type} at path: ${path}`);
-        const storageRef = ref(storage, path);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-        setStatus('uploading');
-        setProgress(0); 
-
-        return new Promise<string>((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            uploadTask.cancel();
-            setStatus('error');
-            reject(new Error("Firebase upload timed out. This often happens due to CORS policy on new domains."));
-          }, 600000);
-
-          uploadTask.on('state_changed',
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setProgress(progress);
-            },
-            (error) => {
-              clearTimeout(timeoutId);
-              console.error(`${type} upload error:`, error);
-              setStatus('error');
-              reject(error);
-            },
-            async () => {
-              clearTimeout(timeoutId);
-              const url = await getDownloadURL(uploadTask.snapshot.ref);
-              console.log(`${type} upload success: ${url}`);
-              setStatus('success');
-              setProgress(100);
-              resolve(url);
-            }
-          );
-        });
-      };
-
-      // Execute Uploads in Parallel
-      const useCloudinary = !!import.meta.env.VITE_CLOUDINARY_CLOUD_NAME && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME !== "MY_CLOUD_NAME";
+      // Execute Uploads
       const uploadPromises: Promise<any>[] = [];
 
       if (audioInputType === 'file' && audioFile) {
-        if (useCloudinary) {
-          uploadPromises.push(uploadToCloudinary(audioFile, 'audio', setAudioProgress, setAudioStatus).then(url => finalAudioUrl = url));
-        } else {
-          const path = `uploads/${user.uid}/audio_${Date.now()}_${audioFile.name.replace(/\s+/g, '_')}`;
-          uploadPromises.push(uploadToFirebase(audioFile, path, setAudioProgress, setAudioStatus, 'audio').then(url => finalAudioUrl = url));
-        }
+        uploadPromises.push(uploadToCloudinary(audioFile, 'audio', setAudioProgress, setAudioStatus).then(url => finalAudioUrl = url));
       }
 
       if (coverInputType === 'file' && coverFile) {
-        if (useCloudinary) {
-          uploadPromises.push(uploadToCloudinary(coverFile, 'image', setCoverProgress, setCoverStatus).then(url => finalCoverUrl = url));
-        } else {
-          const path = `uploads/${user.uid}/cover_${Date.now()}_${coverFile.name.replace(/\s+/g, '_')}`;
-          uploadPromises.push(uploadToFirebase(coverFile, path, setCoverProgress, setCoverStatus, 'image').then(url => finalCoverUrl = url));
-        }
+        uploadPromises.push(uploadToCloudinary(coverFile, 'image', setCoverProgress, setCoverStatus).then(url => finalCoverUrl = url));
       }
 
       if (uploadPromises.length > 0) {
@@ -446,9 +413,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
       console.error("Submission error:", err);
       let message = "Failed to submit release.";
       
-      if (err.code?.startsWith('storage/')) {
-        message = "Firebase Storage Error: " + err.message;
-      } else if (err.message && err.message.startsWith('{')) {
+      if (err.message && err.message.startsWith('{')) {
         try {
           const parsed = JSON.parse(err.message);
           message = parsed.userFriendlyMessage || `Database Error: ${parsed.error}`;
@@ -587,7 +552,37 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
   return (
     <div className="max-w-3xl">
-      {loading && <PremiumLoader progress={uploadProgress} message={uploadMessage} />}
+      {loading && (
+        <div className="relative">
+          <PremiumLoader progress={uploadProgress} message={uploadMessage} />
+          {stuckAtZero && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-6">
+              <div className="max-w-md bg-[#111] border border-red-500/50 p-8 rounded-2xl text-center shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+                <ShieldAlert className="text-red-500 mx-auto mb-4" size={48} />
+                <h3 className="text-xl font-display uppercase tracking-widest text-white mb-4">CORS Block Detected</h3>
+                <p className="text-gray-400 text-sm font-sans mb-6">
+                  The upload is stuck at 0%. This usually means your new domain <span className="text-white font-bold">gatimusic.in</span> is being blocked by the storage provider's security policy.
+                </p>
+                <div className="space-y-3">
+                  <a 
+                    href="https://wa.me/917626841258?text=Hi, my uploads are stuck at 0% on gatimusic.in. It seems like a CORS policy issue."
+                    target="_blank"
+                    className="block w-full bg-[#ccff00] text-black py-3 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors"
+                  >
+                    Get Admin to Fix CORS
+                  </a>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="block w-full border border-[#333] text-gray-500 py-3 rounded-lg font-bold text-xs uppercase tracking-widest hover:text-white transition-colors"
+                  >
+                    Cancel & Retry
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="mb-10">
         <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">Upload New Release</h1>
         <p className="text-gray-400">Fill details carefully to avoid delays.</p>
