@@ -14,6 +14,9 @@ export default function AdminSettings() {
     uploadsEnabled: true,
     platformFee: 0,
     maintenanceMode: false,
+    maintenanceMessage: 'System is currently under scheduled maintenance.',
+    maintenanceDowntime: '2 hours',
+    maintenancePages: [] as string[],
     supportEmail: 'gatimusicdistribution@gmail.com'
   });
 
@@ -72,6 +75,48 @@ export default function AdminSettings() {
                 {settings.maintenanceMode ? 'ACTIVE' : 'INACTIVE'}
               </button>
             </div>
+            {settings.maintenanceMode && (
+              <div className="md:col-span-2 lg:col-span-3 grid md:grid-cols-2 gap-6 p-4 bg-red-500/5 border border-red-500/20 rounded-lg animate-in fade-in slide-in-from-top-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Maintenance Message</label>
+                  <input 
+                    value={settings.maintenanceMessage}
+                    onChange={e => setSettings({...settings, maintenanceMessage: e.target.value})}
+                    className="bg-[#0a0a0a] border border-[#333] text-white p-2 text-xs focus:border-red-500 outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Estimated Downtime</label>
+                  <input 
+                    value={settings.maintenanceDowntime}
+                    onChange={e => setSettings({...settings, maintenanceDowntime: e.target.value})}
+                    className="bg-[#0a0a0a] border border-[#333] text-white p-2 text-xs focus:border-red-500 outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-2 block">Maintenance Scope (Empty = Entire Site)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Uploads', 'Withdrawals', 'Artist-Panel', 'Analytics'].map(page => (
+                      <button
+                        key={page}
+                        onClick={() => {
+                          const pages = settings.maintenancePages || [];
+                          const newPages = pages.includes(page) 
+                            ? pages.filter(p => p !== page)
+                            : [...pages, page];
+                          setSettings({...settings, maintenancePages: newPages});
+                        }}
+                        className={`px-3 py-1 text-[10px] font-display uppercase tracking-widest border transition-all ${
+                          settings.maintenancePages?.includes(page) ? 'bg-red-500 border-red-500 text-white' : 'bg-black border-[#333] text-gray-500'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col gap-3">
               <label className="text-[10px] font-display uppercase tracking-widest text-gray-500">Allow New Uploads</label>
               <button 

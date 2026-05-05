@@ -3,13 +3,14 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { CheckCircle2, Clock, PlayCircle, Loader2, AlertCircle, ChevronDown, ChevronUp, Link as LinkIcon, Info, Edit2, Check, X, ExternalLink } from 'lucide-react';
-import { updateDoc, doc } from 'firebase/firestore';
+import { updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { isPlanActive } from '../../lib/planUtils';
 
 export default function ArtistStatus({ user, userData }: { user: any, userData: any }) {
   const [releases, setReleases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isSubscribed = isPlanActive(userData?.subscription);
 
@@ -31,6 +32,19 @@ export default function ArtistStatus({ user, userData }: { user: any, userData: 
 
     return () => unsubscribe();
   }, [user.uid]);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this submission? This action cannot be undone.")) return;
+    setDeletingId(id);
+    try {
+      await deleteDoc(doc(db, 'submissions', id));
+      alert("Submission deleted successfully.");
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `submissions/${id}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -228,8 +242,24 @@ export default function ArtistStatus({ user, userData }: { user: any, userData: 
                                         <p className="text-white text-xs font-sans leading-relaxed whitespace-pre-wrap">{release.changesRequiredNotes.solutionDesc}</p>
                                       </div>
                                     </div>
-                                    <button className="w-full mt-6 bg-red-600 hover:bg-red-700 text-white py-3 text-[10px] font-display uppercase tracking-widest font-bold transition-all shadow-lg">
-                                      Edit & Resubmit
+                                    <Link 
+                                      to={`/dashboard/upload/${release.id}`}
+                                      className="w-full mt-6 bg-red-600 hover:bg-red-700 text-white py-3 text-[10px] font-display uppercase tracking-widest font-bold transition-all shadow-lg flex items-center justify-center gap-2"
+                                    >
+                                      <Edit2 size={14} /> Edit & Resubmit
+                                    </Link>
+                                  </div>
+                                )}
+
+                                {['Reviewing', 'Changes Required', 'Pending'].includes(release.status) && (
+                                  <div className="pt-4 border-t border-[#222]">
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleDelete(release.id); }}
+                                      disabled={deletingId === release.id}
+                                      className="text-red-500 hover:text-red-400 text-[10px] font-display uppercase tracking-widest font-bold flex items-center gap-2 transition-colors"
+                                    >
+                                      {deletingId === release.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                                      Delete Submission
                                     </button>
                                   </div>
                                 )}

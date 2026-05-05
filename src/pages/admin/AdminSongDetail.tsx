@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw, Trash2, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, Save, Download, AlertTriangle, ExternalLink, Sparkles, History, RotateCcw, Trash2, CheckCircle, Info, ShieldAlert } from 'lucide-react';
 import { geminiService } from '../../services/geminiService';
 import { AIActionButton } from '../../components/AIComponents';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,6 +33,42 @@ export default function AdminSongDetail() {
     fetchSong();
   }, [id]);
 
+  const PREDEFINED_TEMPLATES: Record<string, { problem: string; solution: string }> = {
+    "Audio Quality Issue": {
+      problem: "The uploaded audio file has noticeable quality issues, such as clipping, background noise, or low bitrate.",
+      solution: "Please upload a high-quality WAV or MP3 (320kbps) file that is clean and mastered properly."
+    },
+    "Incorrect File Format": {
+      problem: "The audio or cover art file was uploaded in an unsupported format.",
+      solution: "Please ensure audio is WAV, MP3, or M4A, and cover art is JPG or PNG."
+    },
+    "Cover Art Quality/Size": {
+      problem: "The artwork is blurry, pixelated, or does not meet the minimum size requirement (3000x3000px).",
+      solution: "Please upload a high-resolution, square image (3000x3000px) without any blur or pixelation."
+    },
+    "Missing/Incorrect Metadata": {
+      problem: "There are typos in the song title, artist name, or other metadata fields.",
+      solution: "Please review your submission details and correct any spelling mistakes or formatting errors."
+    },
+    "Copyright/Trademark Concern": {
+      problem: "The submission appears to use copyrighted material (samples, cover art) without clear authorization.",
+      solution: "Please provide proof of rights or remove the copyrighted elements from your release."
+    },
+    "Explicit Tag Missing": {
+      problem: "The song contains explicit language but was marked as 'Clean'.",
+      solution: "Please update the Parental Advisory field to 'Yes (Explicit)' so it matches the content."
+    }
+  };
+
+  const applyTemplate = (type: string) => {
+    const template = PREDEFINED_TEMPLATES[type];
+    if (template) {
+      setProblemDesc(template.problem);
+      setSolutionDesc(template.solution);
+      setIssueType(type);
+    }
+  };
+
   const fetchSong = async () => {
     if (!id) return;
     try {
@@ -49,7 +85,14 @@ export default function AdminSongDetail() {
   };
 
   const handleMetadataChange = (e: any) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // Special handling for array fields
+    if (['primaryGenre', 'secondaryGenre', 'language'].includes(name) && typeof value === 'string') {
+      const arrayValue = value.split(',').map(s => s.trim()).filter(Boolean);
+      setFormData({ ...formData, [name]: arrayValue });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSaveMetadata = async () => {
@@ -378,13 +421,34 @@ export default function AdminSongDetail() {
                   <Input name="mainArtist" label="Main Artist" value={formData.mainArtist} onChange={handleMetadataChange} />
                   <Input name="primaryGenre" label="Primary Genre" value={formData.primaryGenre} onChange={handleMetadataChange} />
                   <Input name="secondaryGenre" label="Secondary Genre" value={formData.secondaryGenre} onChange={handleMetadataChange} />
+                  <Input name="language" label="Language" value={formData.language} onChange={handleMetadataChange} />
+                  
+                  <div className="col-span-1 md:col-span-2 space-y-4 border-t border-[#333] pt-4 mt-2">
+                    <h3 className="text-xs font-display uppercase tracking-widest text-gray-400">Distribution IDs</h3>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <Input name="isrc" label="ISRC" value={formData.isrc} onChange={handleMetadataChange} />
+                      <Input name="upc" label="UPC" value={formData.upc} onChange={handleMetadataChange} />
+                    </div>
+                  </div>
+
+                  <div className="col-span-1 md:col-span-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-display tracking-widest text-gray-500">Explicit Content</label>
+                      <div className={`text-sm font-sans font-bold flex items-center gap-2 p-2 border ${formData.isExplicit ? 'border-red-500/20 text-red-500 bg-red-500/5' : 'border-[#333] text-gray-400'}`}>
+                        {formData.isExplicit ? 'YES (Explicit)' : 'NO (Clean)'}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="col-span-1 md:col-span-2">
                     <Input name="scheduleDate" label="Schedule Release Date" type="date" value={formData.scheduleDate} onChange={handleMetadataChange} />
                   </div>
                   
                   <div className="col-span-1 md:col-span-2 border-t border-[#333] pt-4 mt-2">
-                    <h3 className="text-xs font-display uppercase tracking-widest text-gray-400 mb-4">Copyright & Labels</h3>
+                    <h3 className="text-xs font-display uppercase tracking-widest text-gray-400 mb-4">Copyright & Ownership</h3>
                   </div>
+                  <Input name="copyrightYear" label="Copyright Year (C)" value={formData.copyrightYear} onChange={handleMetadataChange} />
+                  <Input name="productionYear" label="Production Year (P)" value={formData.productionYear} onChange={handleMetadataChange} />
                   <Input name="pLine" label="P Line (Phonographic)" value={formData.pLine} onChange={handleMetadataChange} />
                   <Input name="cLine" label="C Line (Copyright)" value={formData.cLine} onChange={handleMetadataChange} />
                   <div className="col-span-1 md:col-span-2">
@@ -417,10 +481,24 @@ export default function AdminSongDetail() {
                     )}
                   </div>
 
-                  <Input name="featuredArtists" label="Featured Artists (Legacy String)" value={formData.featuredArtists} onChange={handleMetadataChange} />
+                    <Input name="featuredArtists" label="Featured Artists (Legacy String)" value={formData.featuredArtists} onChange={handleMetadataChange} />
                   <div className="col-span-1 md:col-span-2">
                     <Input name="otherCredits" label="Misc / Other Credits" value={formData.otherCredits} onChange={handleMetadataChange} />
                   </div>
+
+                  {formData.lyrics && (
+                    <div className="col-span-1 md:col-span-2 space-y-2 mt-4 bg-black border border-red-500/20 p-4">
+                      <h3 className="text-[10px] font-display uppercase tracking-widest text-red-500 font-bold border-b border-[#333] pb-1 flex items-center gap-2">
+                        <ShieldAlert size={12} /> Lyrics (Explicit/Verified)
+                      </h3>
+                      <textarea
+                        name="lyrics"
+                        value={formData.lyrics}
+                        onChange={handleMetadataChange}
+                        className="w-full bg-[#0a0a0a] border border-[#333] p-3 text-gray-300 font-sans text-xs focus:border-red-500 transition-all min-h-[150px] outline-none"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -570,6 +648,23 @@ export default function AdminSongDetail() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
+                  <label className="text-xs font-display uppercase tracking-widest text-gray-400">Quick Templates</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(PREDEFINED_TEMPLATES).map(type => (
+                    <button 
+                      key={type}
+                      onClick={() => applyTemplate(type)}
+                      className="text-[9px] border border-[#333] px-2 py-1 uppercase font-display tracking-widest text-gray-500 hover:border-[#9d4edd] hover:text-[#9d4edd] transition-colors"
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
                   <label className="text-xs font-display uppercase tracking-widest text-gray-400">Issue Type</label>
                   <button 
                     onClick={handleAiGenerateNotes}
@@ -584,11 +679,13 @@ export default function AdminSongDetail() {
                   onChange={e => setIssueType(e.target.value)}
                   className="bg-[#222] border border-[#444] text-white p-3 font-sans focus:outline-none focus:border-red-500"
                 >
-                  <option>Metadata Error</option>
-                  <option>Cover Art Issue</option>
-                  <option>Audio Issue</option>
-                  <option>Explicit Tag Missing</option>
-                  <option>Other</option>
+                  <option value="Audio Quality Issue">Audio Quality Issue</option>
+                  <option value="Incorrect File Format">Incorrect File Format</option>
+                  <option value="Cover Art Quality/Size">Cover Art Quality/Size</option>
+                  <option value="Missing/Incorrect Metadata">Missing/Incorrect Metadata</option>
+                  <option value="Copyright/Trademark Concern">Copyright/Trademark Concern</option>
+                  <option value="Explicit Tag Missing">Explicit Tag Missing</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -626,13 +723,15 @@ export default function AdminSongDetail() {
 }
 
 function Input({ label, name, value, onChange, type = "text" }: any) {
+  const displayValue = Array.isArray(value) ? value.join(', ') : (value || '');
+  
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[10px] uppercase font-display tracking-widest text-gray-500">{label}</label>
       <input 
         type={type} 
         name={name} 
-        value={value || ''} 
+        value={displayValue} 
         onChange={onChange}
         className="bg-[#0a0a0a] border border-[#333] p-2 text-white text-sm focus:outline-none focus:border-[#9d4edd] transition-colors" 
       />

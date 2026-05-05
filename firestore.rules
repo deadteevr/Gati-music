@@ -90,13 +90,20 @@ service cloud.firestore {
       allow list: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdminList());
       allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
-      allow update: if (isAuthenticated() || isAdmin()) && (
-        (request.auth.uid == resource.data.uid && request.resource.data.status == resource.data.status) || 
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.uid && (
+          request.resource.data.status == resource.data.status || 
+          request.resource.data.status == "Reviewing" || 
+          request.resource.data.status == "Pending"
+        )) || 
         isAdmin()
       );
-      allow delete: if isAdmin();
+      allow delete: if (
+        request.auth.uid == resource.data.uid && 
+        (resource.data.status == 'Reviewing' || resource.data.status == 'Changes Required' || resource.data.status == 'Pending')
+      ) || isAdmin();
     }
-
+    
     match /royalties/{royaltyId} {
       allow list: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdminList());
       allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
@@ -135,7 +142,7 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read, list: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
   }

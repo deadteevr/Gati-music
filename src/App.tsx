@@ -18,14 +18,29 @@ const PricingPage = lazy(() => import('./pages/PricingPage'));
 const BlogPage = lazy(() => import('./pages/BlogPage'));
 const RefundPage = lazy(() => import('./pages/RefundPage'));
 const SmartLink = lazy(() => import('./pages/artist/SmartLink'));
+const Maintenance = lazy(() => import('./pages/Maintenance'));
 
 import { ErrorProvider } from './components/ErrorProvider';
+import { handleFirestoreError, OperationType } from './firebase';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [globalSettings, setGlobalSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (snap) => {
+      if (snap.exists()) {
+        setGlobalSettings(snap.data());
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/global', false);
+    });
+
+    return () => unsubSettings();
+  }, []);
 
   useEffect(() => {
     let roleUnsub: () => void;
@@ -83,27 +98,58 @@ export default function App() {
     return <PremiumLoader />;
   }
 
+  const isInternalUser = role === 'admin';
+  const isGlobalMaintenance = globalSettings?.maintenanceMode && 
+     (!globalSettings?.maintenancePages || globalSettings?.maintenancePages.length === 0);
+  
+  const isDashboardMaintenance = globalSettings?.maintenanceMode && 
+     globalSettings?.maintenancePages?.includes('Artist-Panel');
+
   return (
     <Router>
       <ErrorProvider>
         <Suspense fallback={<PremiumLoader />}>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
-            <Route path="/dashboard/*" element={user && role !== 'admin' ? <Dashboard user={user} userData={userData} /> : <Navigate to="/login" replace />} />
-            <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:slug" element={<BlogPage />} />
-            <Route path="/refund-policy" element={<RefundPage />} />
-            <Route path="/release/:id" element={<SmartLink />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          {isGlobalMaintenance && !isInternalUser ? (
+             <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
+                <Route path="*" element={<Maintenance 
+                  message={globalSettings.maintenanceMessage} 
+                  downtime={globalSettings.maintenanceDowntime} 
+                  supportEmail={globalSettings.supportEmail} 
+                />} />
+             </Routes>
+          ) : (
+            <Routes>
+              <Route path="/" element={globalSettings?.maintenanceMode && globalSettings?.maintenancePages?.includes('Landing') && !isInternalUser ? 
+                <Maintenance 
+                  message={globalSettings.maintenanceMessage} 
+                  downtime={globalSettings.maintenanceDowntime} 
+                  supportEmail={globalSettings.supportEmail} 
+                /> : <LandingPage />} />
+              <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
+              <Route path="/dashboard/*" element={user && role !== 'admin' ? 
+                (isDashboardMaintenance ? 
+                  <Maintenance 
+                    message={globalSettings.maintenanceMessage} 
+                    downtime={globalSettings.maintenanceDowntime} 
+                    supportEmail={globalSettings.supportEmail} 
+                  /> : <Dashboard user={user} userData={userData} globalSettings={globalSettings} />)
+                : <Navigate to="/login" replace />} />
+              <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogPage />} />
+              <Route path="/refund-policy" element={<RefundPage />} />
+              <Route path="/release/:id" element={<SmartLink />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          )}
         </Suspense>
       </ErrorProvider>
     </Router>

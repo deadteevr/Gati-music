@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
-import { useNavigate } from 'react-router-dom';
-import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert, Mail } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert, Mail, AlertCircle, Info, HelpCircle } from 'lucide-react';
 import { geminiService } from '../../services/geminiService';
 import { AIActionButton } from '../../components/AIComponents';
 import PremiumLoader from '../../components/PremiumLoader';
+import { GENRES, LANGUAGES } from '../../constants';
 
 import { getRemainingDays, isPlanActive } from '../../lib/planUtils';
 
@@ -15,8 +16,10 @@ import { useGlobalError } from '../../components/ErrorProvider';
 
 export default function ArtistUpload({ user, userData }: { user: any, userData: any }) {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { showError } = useGlobalError();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
   
   const isSubscribed = isPlanActive(userData?.subscription);
@@ -37,6 +40,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     pLine: "",
     cLine: "",
     lyricist: "",
+    composer: "",
     producer: "",
     producerSpotify: "",
     otherCredits: "",
@@ -45,7 +49,16 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     featureSpotifyLinks: "",
     excludedPlatforms: "",
     audioUrl: "", 
-    coverUrl: ""
+    coverUrl: "",
+    isExplicit: "" as "Yes" | "No" | "",
+    lyrics: "",
+    primaryGenre: [] as string[],
+    secondaryGenre: [] as string[],
+    language: ["Hindi"],
+    isrc: "",
+    upc: "",
+    copyrightYear: new Date().getFullYear().toString(),
+    productionYear: new Date().getFullYear().toString(),
   });
 
   interface Contributor {
@@ -71,6 +84,68 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
   const [resendingVerification, setResendingVerification] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchExistingRelease();
+    }
+  }, [id]);
+
+  const fetchExistingRelease = async () => {
+    setFetching(true);
+    try {
+      const docSnap = await getDoc(doc(db, 'submissions', id!));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.uid !== user.uid) {
+          setError("Unauthorized access to this release.");
+          return;
+        }
+        
+        setFormData({
+          title: data.title || "",
+          mainArtist: data.mainArtist || "",
+          featuringArtists: Array.isArray(data.featuringArtists) ? data.featuringArtists.join(', ') : (data.featuringArtists || ""),
+          labelName: data.labelName || "",
+          pLine: data.pLine || "",
+          cLine: data.cLine || "",
+          lyricist: data.lyricist || "",
+          composer: data.composer || "",
+          producer: data.producer || "",
+          producerSpotify: data.producerSpotify || "",
+          otherCredits: data.otherCredits || "",
+          scheduleDate: data.scheduleDate || "",
+          mainSpotifyLink: data.mainSpotifyLink || "",
+          featureSpotifyLinks: data.featureSpotifyLinks || "",
+          excludedPlatforms: data.excludedPlatforms || "",
+          audioUrl: data.audioUrl || "",
+          coverUrl: data.coverUrl || "",
+          isExplicit: data.isExplicit === true ? "Yes" : (data.isExplicit === false ? "No" : ""),
+          lyrics: data.lyrics || "",
+          primaryGenre: Array.isArray(data.primaryGenre) ? data.primaryGenre : (data.primaryGenre ? [data.primaryGenre] : []),
+          secondaryGenre: Array.isArray(data.secondaryGenre) ? data.secondaryGenre : (data.secondaryGenre ? [data.secondaryGenre] : []),
+          language: Array.isArray(data.language) ? data.language : (data.language ? [data.language] : ["Hindi"]),
+          isrc: data.isrc || "",
+          upc: data.upc || "",
+          copyrightYear: data.copyrightYear || new Date().getFullYear().toString(),
+          productionYear: data.productionYear || new Date().getFullYear().toString(),
+        });
+        
+        if (data.additionalContributors) {
+          setAdditionalArtists(data.additionalContributors);
+        }
+
+        // If it was already successful, we can show it as fixed-path link mode
+        if (data.audioUrl) setAudioInputType('link');
+        if (data.coverUrl) setCoverInputType('link');
+      }
+    } catch (err: any) {
+      console.error("Fetch existing release error:", err);
+      setError("Failed to load existing release details.");
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const handleResendVerification = async () => {
     if (!user) return;
@@ -232,8 +307,21 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     console.log("Upload process initiated...");
 
     try {
-      if (!formData.title || !formData.mainArtist || !formData.pLine || !formData.cLine) {
-        throw new Error("Please fill all required text fields (Title, Artist, P Line, C Line).");
+      const missingFields = [];
+      if (!formData.title) missingFields.push("Song Title");
+      if (!formData.mainArtist) missingFields.push("Artist Name");
+      if (!formData.pLine) missingFields.push("P Line");
+      if (!formData.cLine) missingFields.push("C Line");
+      if (!formData.lyricist) missingFields.push("Lyricist (Full legal name)");
+      if (!formData.composer) missingFields.push("Composer (Full legal name)");
+      if (!formData.isExplicit) missingFields.push("Parental Advisory selection");
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Please fill required fields: ${missingFields.join(", ")}`);
+      }
+
+      if (formData.isExplicit === 'Yes' && !formData.lyrics.trim()) {
+        throw new Error("Lyrics are required for explicit content releases.");
       }
 
       // Validate Spotify Links
@@ -347,62 +435,79 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
       
       console.log("All uploads finished. Saving metadata to Firestore...");
 
+      const submissionData = {
+        uid: user.uid,
+        title: formData.title,
+        mainArtist: formData.mainArtist,
+        featuringArtists: formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
+        additionalContributors: additionalArtists,
+        labelName: formData.labelName,
+        pLine: formData.pLine,
+        cLine: formData.cLine,
+        lyricist: formData.lyricist,
+        composer: formData.composer,
+        producer: formData.producer,
+        producerSpotify: formData.producerSpotify,
+        otherCredits: formData.otherCredits,
+        scheduleDate: formData.scheduleDate,
+        mainSpotifyLink: formData.mainSpotifyLink,
+        featureSpotifyLinks: formData.featureSpotifyLinks,
+        excludedPlatforms: formData.excludedPlatforms,
+        audioUrl: finalAudioUrl,
+        coverUrl: finalCoverUrl,
+        isExplicit: formData.isExplicit === 'Yes',
+        primaryGenre: formData.primaryGenre,
+        secondaryGenre: formData.secondaryGenre,
+        language: formData.language,
+        isrc: formData.isrc,
+        upc: formData.upc,
+        copyrightYear: formData.copyrightYear,
+        productionYear: formData.productionYear,
+        status: "Reviewing",
+        updatedAt: new Date().toISOString(),
+      };
+
       try {
-        await addDoc(collection(db, 'submissions'), {
-          uid: user.uid,
-          title: formData.title,
-          mainArtist: formData.mainArtist,
-          featuringArtists: formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
-          additionalContributors: additionalArtists,
-          labelName: formData.labelName,
-          pLine: formData.pLine,
-          cLine: formData.cLine,
-          lyricist: formData.lyricist,
-          producer: formData.producer,
-          producerSpotify: formData.producerSpotify,
-          otherCredits: formData.otherCredits,
-          scheduleDate: formData.scheduleDate,
-          mainSpotifyLink: formData.mainSpotifyLink,
-          featureSpotifyLinks: formData.featureSpotifyLinks,
-          excludedPlatforms: formData.excludedPlatforms,
-          audioUrl: finalAudioUrl,
-          coverUrl: finalCoverUrl,
-          status: "Reviewing",
-          createdAt: new Date().toISOString(),
-        });
+        if (id) {
+          await updateDoc(doc(db, 'submissions', id), submissionData);
+        } else {
+          await addDoc(collection(db, 'submissions'), {
+            ...submissionData,
+            createdAt: new Date().toISOString(),
+          });
+        }
       } catch (err: any) {
-        handleFirestoreError(err, OperationType.CREATE, 'submissions', false);
+        handleFirestoreError(err, id ? OperationType.UPDATE : OperationType.CREATE, 'submissions', false);
         throw err;
       }
 
-      // Update User Upload Count & Expiry Logic
-      try {
-        const newUploadCount = (userData.subscription?.uploadCount || 0) + 1;
-        const isBasic = userData.subscription?.planType === 'Basic';
-        const shouldExpire = isBasic && newUploadCount >= 1;
+      // Update User Upload Count & Expiry Logic (Only for new uploads)
+      if (!id) {
+        try {
+          const newUploadCount = (userData.subscription?.uploadCount || 0) + 1;
+          const isBasic = userData.subscription?.planType === 'Basic';
+          const shouldExpire = isBasic && newUploadCount >= 1;
 
-        await updateDoc(doc(db, 'users', user.uid), {
-          'subscription.uploadCount': newUploadCount,
-          'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
-        });
-      } catch (err: any) {
-        handleFirestoreError(err, OperationType.UPDATE, 'users', false);
-        // We don't necessarily want to fail the whole submission if just the count fails, 
-        // but it's important for the business logic.
-        throw err;
+          await updateDoc(doc(db, 'users', user.uid), {
+            'subscription.uploadCount': newUploadCount,
+            'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
+          });
+        } catch (err: any) {
+          handleFirestoreError(err, OperationType.UPDATE, 'users', false);
+          // Fixed issues with business logic failure
+        }
       }
 
       // Log Activity
       try {
         await addDoc(collection(db, 'activity_logs'), {
           uid: user.uid,
-          type: 'song_uploaded',
-          message: `Uploaded new release: ${formData.title}`,
+          type: id ? 'song_updated' : 'song_uploaded',
+          message: id ? `Resubmitted release: ${formData.title}` : `Uploaded new release: ${formData.title}`,
           timestamp: new Date().toISOString()
         });
       } catch (err: any) {
         handleFirestoreError(err, OperationType.CREATE, 'activity_logs', false);
-        // Non-critical
       }
       
       console.log("Submission successful!");
@@ -435,7 +540,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
   };
 
   const getButtonText = () => {
-    if (!loading) return "Submit Release";
+    if (!loading) return id ? "Resubmit Release" : "Submit Release";
     if (audioStatus === 'uploading' || coverStatus === 'uploading') {
       const activeProgress = [];
       if (audioProgress >= 0) activeProgress.push(audioProgress);
@@ -499,6 +604,14 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             Contact Support
           </a>
         </div>
+      </div>
+    );
+  }
+
+  if (fetching) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh]">
+        <PremiumLoader message="Fetching release details..." />
       </div>
     );
   }
@@ -584,9 +697,25 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         </div>
       )}
       <div className="mb-10">
-        <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">Upload New Release</h1>
-        <p className="text-gray-400">Fill details carefully to avoid delays.</p>
+        <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">
+          {id ? 'Fix Your Release' : 'Upload New Release'}
+        </h1>
+        <p className="text-gray-400">
+          {id ? 'Review and correct the requested fields.' : 'Fill details carefully to avoid delays.'}
+        </p>
       </div>
+
+      {id && formData.title && (
+        <div className="mb-8 p-6 bg-red-500/5 border border-red-500/20 rounded-lg flex gap-4 items-start">
+          <AlertCircle className="text-red-500 shrink-0 mt-1" size={24} />
+          <div>
+            <h3 className="text-red-500 font-display uppercase tracking-widest text-sm font-bold mb-2">Admin Feedback</h3>
+            <p className="text-gray-300 text-sm font-sans italic">
+              "Please check the fields highlighted or read the 'Changes Required' notes in your status tab."
+            </p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8 pb-20">
         {/* ... Sections A to D remain same ... */}
@@ -596,8 +725,50 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             <p className="text-xs text-gray-500 font-sans">Provide the core details of your release. Ensure spelling is exactly as you want it on streaming platforms.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            <InputField label="Song Title *" name="title" value={formData.title} onChange={handleChange} required />
-            <InputField label="Artist Name *" name="mainArtist" value={formData.mainArtist} onChange={handleChange} required />
+            <InputField 
+              label="Song Title *" 
+              name="title" 
+              value={formData.title} 
+              onChange={handleChange} 
+              required 
+              tooltip="Title of your song. Example: 'Pasoori', 'Tera Ghata'."
+            />
+            <InputField 
+              label="Artist Name *" 
+              name="mainArtist" 
+              value={formData.mainArtist} 
+              onChange={handleChange} 
+              required 
+              tooltip="The primary artist seen on the release. Example: 'Gurbax', 'Ali Sethi'."
+            />
+            
+            <MultiSelectField 
+              label="Primary Genre *" 
+              name="primaryGenre" 
+              value={formData.primaryGenre} 
+              onChange={handleChange} 
+              options={GENRES} 
+              required 
+              tooltip="Main genre of the track. Example: 'Bollywood', 'Hip-Hop'."
+            />
+            <MultiSelectField 
+              label="Language *" 
+              name="language" 
+              value={formData.language} 
+              onChange={handleChange} 
+              options={LANGUAGES} 
+              required 
+              tooltip="Language of the lyrics. Example: 'Hindi', 'Punjabi'."
+            />
+            <MultiSelectField 
+              label="Secondary Genre (Optional)" 
+              name="secondaryGenre" 
+              value={formData.secondaryGenre} 
+              onChange={handleChange} 
+              options={GENRES} 
+              tooltip="A second genre for better algorithm tagging. Example: 'Pop', 'Lo-Fi'."
+            />
+            
             <div className="md:col-span-2 space-y-6">
               <label className="text-xs font-display uppercase tracking-widest text-gray-500 block border-b border-[#222] pb-2">Additional Contributors (Optional)</label>
               
@@ -672,7 +843,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         <div className="bg-[#111] p-6 sm:p-8 border border-[#333]">
           <div className="mb-6 border-b border-[#333] pb-4 flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section B: Credits</h2>
+              <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section B: Credits & Label</h2>
               <p className="text-xs text-gray-500 font-sans">Credit the people behind your music. Required by all major streaming services.</p>
             </div>
             <AIActionButton 
@@ -714,10 +885,22 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
           )}
 
           <div className="grid md:grid-cols-2 gap-x-6 gap-y-8">
-            <InputField label="Label Name (Optional)" name="labelName" value={formData.labelName} onChange={handleChange} />
+            <InputField 
+              label="Label Name (Optional)" 
+              name="labelName" 
+              value={formData.labelName} 
+              onChange={handleChange} 
+              tooltip="Your record label. If independent, write your stage name. Example: 'Gati Records', 'Self-Released'."
+            />
             
             <div className="space-y-4">
-              <InputField label="Producer (Optional)" name="producer" value={formData.producer} onChange={handleChange} />
+              <InputField 
+                label="Producer (Optional)" 
+                name="producer" 
+                value={formData.producer} 
+                onChange={handleChange} 
+                tooltip="Who produced the beat/music. Example: 'Sez On The Beat', 'Gurbax'."
+              />
               {formData.producer && (
                 <div className="animate-in fade-in slide-in-from-top-2">
                   <InputField 
@@ -725,7 +908,8 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
                     name="producerSpotify" 
                     value={formData.producerSpotify} 
                     onChange={handleChange}
-                    placeholder="https://open.spotify.com/..."
+                    placeholder="https://open.spotify.com/artist/..."
+                    tooltip="Spotify profile link of the producer for automatic credit mapping."
                   />
                 </div>
               )}
@@ -737,6 +921,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
               value={formData.pLine} 
               onChange={handleChange} 
               required 
+              tooltip="Phonographic copyright. Usually the owner of the master recording. Example: '2024 Gati Music Distribution'."
               helperText="Example: 2026 Karan Aujla"
             />
             <InputField 
@@ -745,20 +930,78 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
               value={formData.cLine} 
               onChange={handleChange} 
               required 
+              tooltip="Composition copyright. Usually the owner of the lyrics/composition. Example: '2024 Gati Music Distribution'."
               helperText="Example: 2026 Karan Aujla"
             />
             
             <InputField 
-              label="Lyricist (First + Last Name) (Optional)" 
+              label="Lyricist (Real Full Name) *" 
               name="lyricist" 
               value={formData.lyricist} 
               onChange={handleChange} 
+              required
+              tooltip="Enter the real legal name (First + Last). NO STAGE NAMES. Required for collecting royalties from public performances (Clubs, Radio, etc.)."
+              helperText="Legal First + Last Name"
             />
+            <InputField 
+              label="Composer (Real Full Name) *" 
+              name="composer" 
+              value={formData.composer} 
+              onChange={handleChange} 
+              required
+              tooltip="Enter the real legal name (First + Last) of who composed the music. NO ALIASES. Correct legal names ensure accurate royalty distribution."
+              helperText="Legal First + Last Name"
+            />
+            
             <InputField 
               label="Other Credits (Optional)" 
               name="otherCredits" 
               value={formData.otherCredits} 
               onChange={handleChange} 
+              tooltip="Any other roles like Mixing, Mastering, or Arranger."
+            />
+
+            <div className="md:col-span-2 p-4 bg-blue-500/5 border border-blue-500/20 rounded">
+              <p className="text-[10px] text-blue-400 font-display uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
+                <Info size={12} /> Important: Metadata IDs
+              </p>
+              <p className="text-[10px] text-gray-500 font-sans leading-relaxed">
+                Leave ISRC and UPC blank if this is a <span className="text-white font-bold underline">NEW RELEASE</span>. 
+                Our system will generate these codes for you automatically. 
+                Only enter codes if you are <span className="text-white font-bold underline">RE-RELEASING</span> a song that already exists on other platforms with these exact codes.
+              </p>
+            </div>
+
+            <InputField 
+              label="ISRC (Optional)" 
+              name="isrc" 
+              value={formData.isrc} 
+              onChange={handleChange} 
+              helperText="WANT RE-RELEASE? Enter existing ISRC. ELSE LEAVE BLANK." 
+              tooltip="International Standard Recording Code. Leave blank for first-time releases."
+            />
+            <InputField 
+              label="UPC / EAN (Optional)" 
+              name="upc" 
+              value={formData.upc} 
+              onChange={handleChange} 
+              helperText="WANT RE-RELEASE? Enter existing UPC. ELSE LEAVE BLANK." 
+              tooltip="Universal Product Code. Leave blank for first-time releases."
+            />
+            
+            <InputField 
+              label="Copyright Year (Line P)" 
+              name="copyrightYear" 
+              value={formData.copyrightYear} 
+              onChange={handleChange} 
+              tooltip="The year the recording was made."
+            />
+            <InputField 
+              label="Production Year (Line C)" 
+              name="productionYear" 
+              value={formData.productionYear} 
+              onChange={handleChange} 
+              tooltip="The year the composition was created."
             />
           </div>
         </div>
@@ -768,16 +1011,71 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section C: Release Settings</h2>
             <p className="text-xs text-gray-500 font-sans">Choose exactly when you want your audience to hear your music.</p>
           </div>
-          <div className="border border-[#333] p-4 bg-[#0a0a0a]">
-            <label className="block text-sm font-display uppercase tracking-widest text-white mb-2">Schedule Date (Optional)</label>
-            <p className="text-xs text-gray-400 font-sans mb-4">It takes 2-3 days to be live, so Choose release date accordingly. Leave empty for ASAP release.</p>
-            <input 
-              type="date" 
-              name="scheduleDate" 
-              value={formData.scheduleDate} 
-              onChange={handleChange}
-              className="w-full md:w-1/2 bg-transparent border-b border-[#333] py-2 text-white focus:outline-none focus:border-[#ccff00] font-sans"
-            />
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="border border-[#333] p-4 bg-[#0a0a0a]">
+              <div className="flex items-center mb-2">
+                <label className="block text-sm font-display uppercase tracking-widest text-white">Schedule Date (Optional)</label>
+                <Tooltip text="When you want the song to go live. Choose at least 2-3 days from now. Leave empty for ASAP release." />
+              </div>
+              <p className="text-xs text-gray-400 font-sans mb-4">It takes 2-3 days to be live, so Choose release date accordingly. Leave empty for ASAP release.</p>
+              <input 
+                type="date" 
+                name="scheduleDate" 
+                value={formData.scheduleDate} 
+                onChange={handleChange}
+                className="w-full bg-transparent border-b border-[#333] py-2 text-white focus:outline-none focus:border-[#ccff00] font-sans"
+              />
+            </div>
+
+            <div className="border border-[#333] p-4 bg-[#0a0a0a]">
+              <div className="flex items-center mb-2">
+                <label className="block text-sm font-display uppercase tracking-widest text-[#ccff00] font-bold">Parental Advisory Content *</label>
+                <Tooltip text="Select 'Yes' if the song contains bad language or sensitive themes. Lyrics will be required for explicit content." />
+              </div>
+              <p className="text-[10px] text-gray-400 font-sans mb-4 uppercase tracking-widest">Does this song contain explicit lyrics or strong language?</p>
+              
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isExplicit: 'Yes' })}
+                  className={`flex-1 py-3 font-display uppercase tracking-widest text-xs font-bold transition-all border ${
+                    formData.isExplicit === 'Yes' 
+                      ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
+                      : 'bg-[#111] border-[#333] text-gray-500 hover:border-gray-500'
+                  }`}
+                >
+                  Yes (Explicit)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isExplicit: 'No' })}
+                  className={`flex-1 py-3 font-display uppercase tracking-widest text-xs font-bold transition-all border ${
+                    formData.isExplicit === 'No' 
+                      ? 'bg-[#ccff00]/10 border-[#ccff00] text-[#ccff00] shadow-[0_0_15px_rgba(204,255,0,0.1)]' 
+                      : 'bg-[#111] border-[#333] text-gray-500 hover:border-gray-500'
+                  }`}
+                >
+                  No (Clean)
+                </button>
+              </div>
+            </div>
+
+            {formData.isExplicit === 'Yes' && (
+              <div className="md:col-span-2 space-y-4 animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center mb-2">
+                  <label className="text-xs font-display uppercase tracking-widest text-red-500 font-bold">Full Lyrics (Required) *</label>
+                  <Tooltip text="Full lyrics of the song. Required because explicit content is selected." />
+                </div>
+                <textarea 
+                  name="lyrics"
+                  value={formData.lyrics}
+                  onChange={handleChange}
+                  placeholder="Paste full lyrics here..."
+                  className="w-full bg-black border border-[#333] p-4 text-white font-sans text-sm focus:border-red-500 outline-none transition-all min-h-[150px]"
+                  required
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -787,8 +1085,20 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             <p className="text-xs text-gray-500 font-sans">Ensure this release is perfectly mapped to your existing Spotify artist profiles so you don't lose streams.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            <InputField label="Main Artist Spotify Link (Optional)" name="mainSpotifyLink" value={formData.mainSpotifyLink} onChange={handleChange} />
-            <InputField label="Feature Artists Spotify Links (Optional)" name="featureSpotifyLinks" value={formData.featureSpotifyLinks} onChange={handleChange} />
+            <InputField 
+              label="Main Artist Spotify Link (Optional)" 
+              name="mainSpotifyLink" 
+              value={formData.mainSpotifyLink} 
+              onChange={handleChange} 
+              tooltip="Spotify profile link of the main artist for automatic credit mapping."
+            />
+            <InputField 
+              label="Feature Artists Spotify Links (Optional)" 
+              name="featureSpotifyLinks" 
+              value={formData.featureSpotifyLinks} 
+              onChange={handleChange} 
+              tooltip="Comma-separated Spotify profile links of the feature artists."
+            />
           </div>
         </div>
 
@@ -801,7 +1111,10 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
           {/* Audio Upload */}
           <div className="mb-8 border border-[#333] bg-[#0a0a0a] overflow-hidden">
             <div className="flex justify-between items-center px-4 py-3 border-b border-[#333] bg-[#111]">
-              <label className="text-xs font-display uppercase tracking-widest text-[#ccff00] font-bold">Audio File *</label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-display uppercase tracking-widest text-[#ccff00] font-bold">Audio File *</label>
+                <Tooltip text="High quality audio file (MP3, WAV, or M4A). Max 100MB." />
+              </div>
               <div className="flex gap-1">
                 <button type="button" onClick={() => setAudioInputType('file')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${audioInputType === 'file' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Upload</button>
                 <button type="button" onClick={() => setAudioInputType('link')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${audioInputType === 'link' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Link</button>
@@ -876,7 +1189,10 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
           {/* Cover Upload */}
           <div className="border border-[#333] bg-[#0a0a0a] overflow-hidden">
             <div className="flex justify-between items-center px-4 py-3 border-b border-[#333] bg-[#111]">
-              <label className="text-xs font-display uppercase tracking-widest text-[#ccff00] font-bold">Cover Art *</label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-display uppercase tracking-widest text-[#ccff00] font-bold">Cover Art *</label>
+                <Tooltip text="Crisp cover artwork. Minimum 3000x3000px. PNG or JPG format." />
+              </div>
               <div className="flex gap-1">
                 <button type="button" onClick={() => setCoverInputType('file')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${coverInputType === 'file' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Upload</button>
                 <button type="button" onClick={() => setCoverInputType('link')} className={`text-[10px] font-display px-3 py-1 uppercase font-bold transition-colors ${coverInputType === 'link' ? 'bg-[#ccff00] text-black' : 'bg-[#222] text-gray-500 hover:text-white'}`}>Link</button>
@@ -890,7 +1206,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
                     <input 
                       type="file" 
                       id="cover-file"
-                      accept=".png,.jpg,.jpeg,.pdf,image/*"
+                      accept=".png,.jpg,.jpeg,image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         if (file) {
@@ -1010,8 +1326,13 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-1">Section F: Platform Control</h2>
             <p className="text-xs text-gray-500 font-sans">Fine-tune where your music should NOT appear.</p>
           </div>
-          <InputField label="Exclude Platforms (Optional)" name="excludedPlatforms" value={formData.excludedPlatforms} onChange={handleChange} />
-          <p className="text-xs text-gray-500 mt-2 font-sans">Type comma-separated platforms you do NOT want your music on (e.g. Spotify, TikTok). Leave blank to distribute everywhere.</p>
+          <InputField 
+            label="Exclude Platforms (Optional)" 
+            name="excludedPlatforms" 
+            value={formData.excludedPlatforms} 
+            onChange={handleChange} 
+            tooltip="Type comma-separated platforms you do NOT want your music on (e.g. Spotify, TikTok). Leave blank to distribute everywhere."
+          />
         </div>
 
         <button 
@@ -1026,19 +1347,108 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
   );
 }
 
-function InputField({ label, name, value, onChange, required = false, helperText = "" }: any) {
+function Tooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative inline-block ml-2 group">
+      <button 
+        type="button"
+        onClick={() => setShow(!show)}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        className="text-gray-600 hover:text-[#ccff00] transition-colors"
+      >
+        <HelpCircle size={14} />
+      </button>
+      {show && (
+        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-[#222] border border-[#333] text-[10px] text-gray-300 font-sans leading-relaxed shadow-xl rounded-lg animate-in fade-in slide-in-from-bottom-1">
+          {text}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#222]"></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MultiSelectField({ label, name, value, onChange, options, tooltip, required = false }: any) {
+  const toggleOption = (opt: string) => {
+    const newValue = value.includes(opt) 
+      ? value.filter((v: string) => v !== opt)
+      : [...value, opt];
+    onChange({ target: { name, value: newValue } });
+  };
+
   return (
     <div className="flex flex-col">
-      <label className="text-xs font-display uppercase tracking-widest text-gray-500 mb-2">{label}</label>
-      <input 
-        type="text" 
+      <div className="flex items-center mb-2">
+        <label className="text-xs font-display uppercase tracking-widest text-gray-500">{label}</label>
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
+      <div className="flex flex-wrap gap-2 p-3 bg-black border border-[#333] min-h-[50px] items-center">
+        {value.length === 0 && <span className="text-[10px] text-gray-700 uppercase font-sans">Select Multiple...</span>}
+        {value.map((v: string) => (
+          <span key={v} className="bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-[10px] px-2 py-1 flex items-center gap-1 font-sans">
+            {v}
+            <button type="button" onClick={() => toggleOption(v)} className="hover:text-white"><X size={10} /></button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 max-h-32 overflow-y-auto border border-[#222] bg-[#0a0a0a]">
+        {options.map((opt: string) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => toggleOption(opt)}
+            className={`w-full text-left px-3 py-2 text-[10px] font-sans border-b border-[#111] transition-colors ${value.includes(opt) ? 'bg-[#ccff00]/5 text-[#ccff00]' : 'text-gray-500 hover:bg-[#111]'}`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SelectField({ label, name, value, onChange, options, tooltip, required = false }: any) {
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center mb-2">
+        <label className="text-xs font-display uppercase tracking-widest text-gray-500">{label}</label>
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
+      <select
         name={name}
         value={value}
         onChange={onChange}
         required={required}
-        className="bg-transparent border-b border-[#333] py-2 text-white font-sans focus:outline-none focus:border-white transition-colors"
+        className="bg-black border-b border-[#333] py-2 text-white font-sans focus:outline-none focus:border-white transition-colors cursor-pointer"
+      >
+        <option value="">Select...</option>
+        {options.map((opt: string) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function InputField({ label, name, value, onChange, tooltip, required = false, helperText = "", placeholder = "", type = "text" }: any) {
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center mb-2">
+        <label className="text-xs font-display uppercase tracking-widest text-gray-500">{label}</label>
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
+      <input 
+        type={type}
+        name={name} 
+        value={value} 
+        onChange={onChange}
+        required={required}
+        placeholder={placeholder}
+        className="bg-transparent border-b border-[#333] py-2 text-white font-sans focus:outline-none focus:border-white transition-colors placeholder:text-gray-700"
       />
-      {helperText && <p className="text-xs text-gray-500 mt-2 font-sans">{helperText}</p>}
+      {helperText && <p className="text-[10px] text-gray-500 mt-2 font-sans italic">{helperText}</p>}
     </div>
   );
 }

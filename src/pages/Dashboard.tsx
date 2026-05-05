@@ -16,11 +16,22 @@ const ArtistWithdrawal = lazy(() => import('./artist/ArtistWithdrawal'));
 const ArtistNotifications = lazy(() => import('./artist/ArtistNotifications'));
 const ArtistProfile = lazy(() => import('./artist/ArtistProfile'));
 const ArtistMarketing = lazy(() => import('./artist/ArtistMarketing'));
+const Maintenance = lazy(() => import('./Maintenance'));
 
-export default function Dashboard({ user, userData }: { user: any, userData: any }) {
+export default function Dashboard({ user, userData, globalSettings }: { user: any, userData: any, globalSettings: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
+
+  const isMaintenance = (page: string) => {
+    return globalSettings?.maintenanceMode && globalSettings?.maintenancePages?.includes(page);
+  };
+
+  const mntProps = {
+    message: globalSettings?.maintenanceMessage,
+    downtime: globalSettings?.maintenanceDowntime,
+    supportEmail: globalSettings?.supportEmail
+  };
 
   const subscription = userData?.subscription;
   const daysLeft = getRemainingDays(subscription?.expiryDate);
@@ -219,12 +230,13 @@ export default function Dashboard({ user, userData }: { user: any, userData: any
           <Suspense fallback={<PremiumLoader />}>
             <Routes>
               <Route path="/" element={<ArtistHome user={user} userData={userData} />} />
-              <Route path="/upload" element={<ArtistUpload user={user} userData={userData} />} />
+              <Route path="/upload" element={isMaintenance('Uploads') ? <Maintenance {...mntProps} /> : <ArtistUpload user={user} userData={userData} />} />
+              <Route path="/upload/:id" element={isMaintenance('Uploads') ? <Maintenance {...mntProps} /> : <ArtistUpload user={user} userData={userData} />} />
               <Route path="/status" element={<ArtistStatus user={user} userData={userData} />} />
-              <Route path="/royalties" element={<ArtistRoyalties user={user} userData={userData} />} />
-              <Route path="/withdrawals" element={<ArtistWithdrawal user={user} userData={userData} />} />
+              <Route path="/royalties" element={isMaintenance('Withdrawals') ? <Maintenance {...mntProps} /> : <ArtistRoyalties user={user} userData={userData} />} />
+              <Route path="/withdrawals" element={isMaintenance('Withdrawals') ? <Maintenance {...mntProps} /> : <ArtistWithdrawal user={user} userData={userData} />} />
               <Route path="/notifications" element={<ArtistNotifications user={user} userData={userData} />} />
-              <Route path="/marketing" element={<ArtistMarketing user={user} userData={userData} />} />
+              <Route path="/marketing" element={isMaintenance('Analytics') ? <Maintenance {...mntProps} /> : <ArtistMarketing user={user} userData={userData} />} />
               <Route path="/profile" element={<ArtistProfile user={user} userData={userData} />} />
             </Routes>
           </Suspense>
