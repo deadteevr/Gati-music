@@ -80,7 +80,10 @@ service cloud.firestore {
         isAdmin()
       );
       allow update: if isAuthenticated() && (
-        (isOwner(userId) && request.resource.data.role == resource.data.role) || 
+        (isOwner(userId) && (
+          request.resource.data.role == resource.data.role &&
+          (isAdmin() || request.resource.data.get('subscription', null) == resource.data.get('subscription', null))
+        )) || 
         isAdmin()
       );
       allow delete: if isAdmin();
@@ -144,6 +147,28 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /requests/{requestId} {
+      allow create: if true;
+      allow read, list, update, delete: if isAdmin();
+    }
+
+    match /referralCodes/{code} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+    }
+
+    match /referrals/{referralId} {
+      allow list, read: if isAuthenticated() && (resource.data.referrerUid == request.auth.uid || resource.data.refereeUid == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /rewards/{rewardId} {
+      allow list, read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
     }
   }
 }

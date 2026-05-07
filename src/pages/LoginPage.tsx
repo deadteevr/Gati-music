@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,31 @@ export default function LoginPage() {
       showError(message, () => handleSubmit(e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Please enter your email address first.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch('/api/auth-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'reset',
+          to: email
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send reset email");
+      alert("Branded password reset link sent to your email!");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -73,6 +99,16 @@ export default function LoginPage() {
               required
               className="w-full bg-[#111] border border-[#333] p-4 text-white focus:outline-none focus:border-[#ccff00] transition-colors"
             />
+            <div className="flex justify-end">
+              <button 
+                type="button" 
+                onClick={handleForgotPassword}
+                disabled={resetLoading}
+                className="text-[10px] uppercase tracking-widest text-gray-500 hover:text-[#ccff00] transition-colors font-black"
+              >
+                {resetLoading ? "SENDING..." : "FORGOT PASSWORD?"}
+              </button>
+            </div>
             <button 
               type="submit"
               disabled={loading}

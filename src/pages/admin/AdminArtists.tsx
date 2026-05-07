@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, where, updateDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link } from 'react-router-dom';
-import { Search, ChevronRight, X } from 'lucide-react';
+import { Search, ChevronRight, X, FileText } from 'lucide-react';
+import { generateReferralCode, linkReferralIfApplicable, saveReferralCode } from '../../lib/referralUtils';
 
 export default function AdminArtists() {
   const [artists, setArtists] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [requests, setRequests] = useState<any[]>([]);
   
   // Create Artist Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -18,7 +20,11 @@ export default function AdminArtists() {
     email: '',
     password: '',
     plan: 'Basic',
-    planExpiry: ''
+    planExpiry: '',
+    requestId: '',
+    referralCode: '',
+    instagram: '',
+    spotifyLink: ''
   });
   const [creating, setCreating] = useState(false);
 
@@ -32,8 +38,29 @@ export default function AdminArtists() {
     }, (error) => {
       console.error("AdminArtists: snapshot error", error);
     });
-    return unsub;
+
+    const qReq = query(collection(db, 'requests'), where('status', '==', 'pending'));
+    const unsubReq = onSnapshot(qReq, (snap) => {
+      setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsub();
+      unsubReq();
+    };
   }, []);
+
+  const handleSelectRequest = (req: any) => {
+    setNewArtist({
+      ...newArtist,
+      name: req.applicantName,
+      email: req.email,
+      requestId: req.id,
+      referralCode: req.referralCode || '',
+      instagram: req.instagram || '',
+      spotifyLink: req.spotifyLink || ''
+    });
+  };
 
   const handleCreateArtist = async () => {
     if (!newArtist.name || !newArtist.email || !newArtist.password) {
@@ -53,21 +80,18 @@ export default function AdminArtists() {
         newArtist.password
       );
       const newUid = userCredential.user.uid;
-      
-      // Send Firebase Email Verification
-      try {
-        await sendEmailVerification(userCredential.user);
-        console.log("Firebase verification email sent to", newArtist.email);
-      } catch (verifErr) {
-        console.error("Failed to send Firebase verification email", verifErr);
-      }
 
+      const artistReferralCode = await generateReferralCode(newArtist.name);
+      
       await setDoc(doc(db, 'users', newUid), {
         uid: newUid,
         displayName: newArtist.name,
         name: newArtist.name,
         email: newArtist.email,
         role: 'artist',
+        referralCode: artistReferralCode,
+        instagram: newArtist.instagram,
+        spotifyLink: newArtist.spotifyLink,
         subscription: {
           planType: newArtist.plan,
           startDate: new Date().toISOString(),
@@ -80,95 +104,33 @@ export default function AdminArtists() {
         manualAccount: true
       });
 
+      // Also save to public registry
+      await saveReferralCode(newUid, artistReferralCode);
+
+      // Link referral if the request had one
+      if (newArtist.referralCode) {
+        await linkReferralIfApplicable(newUid, newArtist.email, newArtist.referralCode);
+      }
+
+      // Update request status if linked
+      if (newArtist.requestId) {
+        await updateDoc(doc(db, 'requests', newArtist.requestId), { status: 'approved' });
+      }
+
       // Send Welcome Email
       try {
-        const emailHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-              .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
-              .header { border-bottom: 2px solid #ccff00; padding-bottom: 20px; margin-bottom: 20px; }
-              .logo { color: #000; font-size: 24px; font-weight: bold; letter-spacing: -1px; text-decoration: none; }
-              .h1 { font-size: 20px; color: #000; margin-top: 0; }
-              .section-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; color: #666; letter-spacing: 1px; }
-              .bullet-list { margin-bottom: 20px; padding-left: 20px; }
-              .bullet-list li { margin-bottom: 8px; }
-              .steps { background: #f9f9f9; padding: 20px; border-radius: 4px; margin-bottom: 20px; }
-              .steps ol { padding-left: 20px; margin: 0; }
-              .steps li { margin-bottom: 10px; }
-              .cta-button { display: inline-block; background-color: #ccff00; color: #000; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; margin: 10px 0; }
-              .footer { font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px; }
-              .whatsapp-link { color: #25D366; text-decoration: none; font-weight: bold; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <span class="logo">GATI.</span>
-              </div>
-              <h1 class="h1">Hi ${newArtist.name},</h1>
-              <p>Welcome to <strong>Gati Music Distribution</strong> — we're excited to have you onboard.</p>
-              
-              <div class="section-title">What You Can Do:</div>
-              <ul class="bullet-list">
-                <li>Upload and release your music worldwide</li>
-                <li>Distribute to platforms like Spotify, Apple Music, YouTube Music</li>
-                <li>Track your streams and performance</li>
-                <li>Start building your music career</li>
-              </ul>
-              
-              <div class="section-title">Getting Started:</div>
-              <div class="steps">
-                <ol>
-                  <li>Login to your dashboard</li>
-                  <li>Upload your first track</li>
-                  <li>Add cover art & details</li>
-                  <li>Submit for release</li>
-                </ol>
-                <div style="text-align: center; margin-top: 15px;">
-                  <a href="https://www.gatimusic.in/dashboard" class="cta-button">👉 Access Dashboard</a>
-                </div>
-              </div>
-              
-              <div class="section-title">Pro Tips:</div>
-              <ul class="bullet-list">
-                <li>Use high-quality audio (WAV preferred)</li>
-                <li>Cover art should be 3000x3000px</li>
-                <li>Promote your song with reels after release</li>
-              </ul>
-              
-              <div class="section-title">Support:</div>
-              <p>Need help?</p>
-              <ul class="bullet-list">
-                <li>Reply to this email</li>
-                <li>Or contact us on <a href="https://wa.me/917626841258" class="whatsapp-link">WhatsApp</a></li>
-              </ul>
-              
-              <p>We’re here to help you grow. Let’s build your music journey together.</p>
-              
-              <div class="footer">
-                – Team Gati Music Distribution
-              </div>
-            </div>
-          </body>
-          </html>
-        `;
-
-        await fetch('/api/send-email', {
+        await fetch('/api/auth-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            type: 'welcome',
             to: newArtist.email,
-            subject: 'Welcome to Gati Music Distribution 🚀',
-            html: emailHtml
+            name: newArtist.name
           })
         });
         console.log("Welcome email sent success to", newArtist.email);
       } catch (emailErr) {
         console.error("Failed to send welcome email", emailErr);
-        // Don't fail the whole creation if email fails
       }
       
       setShowAddModal(false);
@@ -278,6 +240,33 @@ export default function AdminArtists() {
             </button>
             <h2 className="text-xl font-display uppercase tracking-widest text-[#9d4edd] mb-6">Create Artist Account</h2>
             
+            {requests.length > 0 && (
+              <div className="mb-6 p-4 bg-black border border-[#222]">
+                <p className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-2">Link to a pending request</p>
+                <div className="max-h-32 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                  {requests.map(req => (
+                    <button 
+                      key={req.id}
+                      onClick={() => handleSelectRequest(req)}
+                      className={`w-full text-left p-3 border transition-colors flex flex-col gap-1 ${
+                        newArtist.requestId === req.id ? 'border-[#ccff00] bg-[#ccff00]/5 text-white' : 'border-[#222] text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs">{req.applicantName}</span>
+                        <FileText size={12} className={newArtist.requestId === req.id ? 'text-[#ccff00]' : 'text-gray-600'} />
+                      </div>
+                      <div className="flex flex-col text-[9px] uppercase tracking-wider text-gray-500">
+                        <span>{req.email} • {req.phone}</span>
+                        <span>IG: {req.instagram} {req.spotifyLink && `• Spotify: Yes`}</span>
+                        {req.referralCode && <span className="text-[#ccff00]/80">Code: {req.referralCode}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4 font-sans">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] uppercase font-display tracking-widest text-gray-500">Artist Name</label>

@@ -126,10 +126,10 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    document.title = "Gati Music Distribution | Best Music Distribution in India";
+    document.title = "Gati Music Distribution | Official Music Distribution for Independent Artists";
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', "Release your song on Spotify in India with Gati Music Distribution. 48-hour delivery, WhatsApp support, and 80% artist royalties. The top choice for independent music distribution in India.");
+      metaDescription.setAttribute('content', "Join Gati Music Distribution and release your songs on Spotify, Apple Music, and 250+ stores worldwide. India's fastest official music distributor with 80% artist royalties.");
     }
   }, []);
 

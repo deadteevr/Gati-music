@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, query, where, getDocs, limit, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Music, TrendingUp, TrendingDown, Radio, Activity, CalendarDays, Bell, MessageSquare, Send, CheckCircle2, Sparkles, Lightbulb, Globe, Plus, Megaphone, IndianRupee, ShieldAlert } from 'lucide-react';
+import { ArrowRight, Music, TrendingUp, TrendingDown, Radio, Activity, CalendarDays, Bell, MessageSquare, Send, CheckCircle2, Sparkles, Lightbulb, Globe, Plus, Megaphone, IndianRupee, ShieldAlert, Star } from 'lucide-react';
 import { geminiService, GrowthInsights, NextActions } from '../../services/geminiService';
 import { AIThinking } from '../../components/AIComponents';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,6 +40,7 @@ export default function ArtistHome({ user, userData }: { user: any, userData: an
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsights, setAiInsights] = useState<GrowthInsights | null>(null);
   const [aiActions, setAiActions] = useState<NextActions | null>(null);
+  const [rewards, setRewards] = useState<any[]>([]);
 
   const generateAIContext = async () => {
     if (loading || stats.totalSongs === 0) return;
@@ -102,144 +103,140 @@ export default function ArtistHome({ user, userData }: { user: any, userData: an
   };
 
   useEffect(() => {
-    let unsubSub: any;
-    let unsubRoy: any;
+    setLoading(true);
+    
+    // Submissions Snapshot
+    const subQuery = query(collection(db, 'submissions'), where('uid', '==', user.uid));
+    const unsubSub = onSnapshot(subQuery, (subDocs) => {
+      let liveCount = 0;
+      let progressCount = 0;
+      let totalStreamsCalc = 0;
+      const aggregatedStreams: Record<string, number> = {};
+      
+      subDocs.forEach(d => {
+        const data = d.data();
+        const status = data.status;
+        if (status === 'live' || status === 'Live') {
+          liveCount++;
+        } else {
+          progressCount++;
+        }
 
-    const fetchSummary = async () => {
+        if (data.streams) {
+          totalStreamsCalc += Number(data.streams.total || 0);
+          for (const [platform, count] of Object.entries(data.streams)) {
+            if (platform !== 'total' && Number(count) > 0) {
+              aggregatedStreams[platform] = (aggregatedStreams[platform] || 0) + Number(count);
+            }
+          }
+        }
+      });
+
+      const formattedPieData = Object.keys(aggregatedStreams)
+        .map(platform => ({
+          name: platform.charAt(0).toUpperCase() + platform.slice(1),
+          value: aggregatedStreams[platform]
+        }))
+        .sort((a, b) => b.value - a.value);
+
+      setPieData(formattedPieData);
+
+      setStats(prev => ({
+        ...prev,
+        totalSongs: subDocs.size,
+        liveSongs: liveCount,
+        inProgress: progressCount,
+        totalStreams: totalStreamsCalc
+      }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'submissions', false);
+    });
+
+    // Royalties Snapshot
+    const royQuery = query(collection(db, 'royalties'), where('uid', '==', user.uid));
+    const unsubRoy = onSnapshot(royQuery, (royDocs) => {
+      let totalEarnings = 0;
+      const royaltiesList: any[] = [];
+      
+      royDocs.forEach(d => {
+        const data = d.data();
+        totalEarnings += data.amount || 0;
+        royaltiesList.push(data);
+      });
+
+      royaltiesList.sort((a, b) => {
+        const parseMonth = (str: string) => new Date(`${str} 1`).getTime();
+        return parseMonth(a.reportMonth) - parseMonth(b.reportMonth);
+      });
+
+      const monthlyData = royaltiesList.map(r => ({
+        month: r.reportMonth,
+        earnings: Number(r.amount)
+      }));
+
+      setChartData(monthlyData);
+
+      let currentMonthEarnings = 0;
+      if (royaltiesList.length > 0) {
+        currentMonthEarnings = royaltiesList[royaltiesList.length - 1].amount;
+      }
+
+      let growthCalc = null;
+      if (royaltiesList.length >= 2) {
+        const curr = royaltiesList[royaltiesList.length - 1].amount;
+        const prev = royaltiesList[royaltiesList.length - 2].amount;
+        if (prev > 0) {
+          growthCalc = ((curr - prev) / prev) * 100;
+        } else if (curr > 0) {
+          growthCalc = 100;
+        } else {
+          growthCalc = 0;
+        }
+      } else if (royaltiesList.length === 1) {
+        if (royaltiesList[0].amount > 0) growthCalc = 100;
+      }
+      setGrowth(growthCalc);
+
+      setStats(prev => ({
+        ...prev,
+        totalEarnings,
+        currentMonthEarnings
+      }));
+      
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'royalties', false);
+      setLoading(false);
+    });
+
+    // Notifications Snapshot
+    const notifQuery = query(collection(db, 'notifications'), where('uid', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
+    const unsubNotif = onSnapshot(notifQuery, (notifDocs) => {
+      const activityList: any[] = [];
+      notifDocs.forEach(d => {
+        activityList.push({ id: d.id, ...d.data() });
+      });
+      setRecentActivity(activityList);
+    }, (error) => {
+      console.error("ArtistHome: notifications snapshot error", error);
+    });
+
+    // Rewards Fetch (Static)
+    const fetchRewards = async () => {
       try {
-        setLoading(true);
-        const subQuery = query(collection(db, 'submissions'), where('uid', '==', user.uid));
-        
-        unsubSub = onSnapshot(subQuery, (subDocs) => {
-          let liveCount = 0;
-          let progressCount = 0;
-          let totalStreamsCalc = 0;
-          const aggregatedStreams: Record<string, number> = {};
-          
-          subDocs.forEach(d => {
-            const data = d.data();
-            const status = data.status;
-            if (status === 'live' || status === 'Live') {
-              liveCount++;
-            } else {
-              progressCount++;
-            }
-
-            if (data.streams) {
-              totalStreamsCalc += Number(data.streams.total || 0);
-              for (const [platform, count] of Object.entries(data.streams)) {
-                if (platform !== 'total' && Number(count) > 0) {
-                  aggregatedStreams[platform] = (aggregatedStreams[platform] || 0) + Number(count);
-                }
-              }
-            }
-          });
-
-          const formattedPieData = Object.keys(aggregatedStreams)
-            .map(platform => ({
-              name: platform.charAt(0).toUpperCase() + platform.slice(1),
-              value: aggregatedStreams[platform]
-            }))
-            .sort((a, b) => b.value - a.value);
-
-          setPieData(formattedPieData);
-
-          setStats(prev => ({
-            ...prev,
-            totalSongs: subDocs.size,
-            liveSongs: liveCount,
-            inProgress: progressCount,
-            totalStreams: totalStreamsCalc
-          }));
-        }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'submissions', false);
-        });
-
-        const royQuery = query(collection(db, 'royalties'), where('uid', '==', user.uid));
-        unsubRoy = onSnapshot(royQuery, (royDocs) => {
-          let totalEarnings = 0;
-          const royaltiesList: any[] = [];
-          
-          royDocs.forEach(d => {
-            const data = d.data();
-            totalEarnings += data.amount || 0;
-            royaltiesList.push(data);
-          });
-
-          royaltiesList.sort((a, b) => {
-            const parseMonth = (str: string) => new Date(`${str} 1`).getTime();
-            return parseMonth(a.reportMonth) - parseMonth(b.reportMonth);
-          });
-
-          const monthlyData = royaltiesList.map(r => ({
-            month: r.reportMonth,
-            earnings: Number(r.amount)
-          }));
-
-          setChartData(monthlyData);
-
-          let currentMonthEarnings = 0;
-          if (royaltiesList.length > 0) {
-            currentMonthEarnings = royaltiesList[royaltiesList.length - 1].amount;
-          }
-
-          let growthCalc = null;
-          if (royaltiesList.length >= 2) {
-            const curr = royaltiesList[royaltiesList.length - 1].amount;
-            const prev = royaltiesList[royaltiesList.length - 2].amount;
-            if (prev > 0) {
-              growthCalc = ((curr - prev) / prev) * 100;
-            } else if (curr > 0) {
-              growthCalc = 100;
-            } else {
-              growthCalc = 0;
-            }
-          } else if (royaltiesList.length === 1) {
-            if (royaltiesList[0].amount > 0) growthCalc = 100;
-          }
-          setGrowth(growthCalc);
-
-          setStats(prev => ({
-            ...prev,
-            totalEarnings,
-            currentMonthEarnings
-          }));
-          
-          setLoading(false);
-        }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'royalties', false);
-          setLoading(false);
-        });
-
-        const notifQuery = query(collection(db, 'notifications'), where('uid', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
-        const unsubNotif = onSnapshot(notifQuery, (notifDocs) => {
-          const activityList: any[] = [];
-          notifDocs.forEach(d => {
-            activityList.push({ id: d.id, ...d.data() });
-          });
-          setRecentActivity(activityList);
-        }, (error) => {
-          console.error("ArtistHome: notifications snapshot error", error);
-        });
-
-        return () => {
-          if (unsubSub) unsubSub();
-          if (unsubRoy) unsubRoy();
-          unsubNotif();
-        };
-
+        const q = query(collection(db, 'rewards'), where('uid', '==', user.uid), where('status', '==', 'active'));
+        const snap = await getDocs(q);
+        setRewards(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (e) {
-        console.error(e);
-        setLoading(false);
+        console.error("Error fetching rewards:", e);
       }
     };
-    
-    const unsubPromise = fetchSummary();
+    fetchRewards();
 
     return () => {
-      unsubPromise.then(unsubFn => {
-        if (unsubFn) unsubFn();
-      });
+      unsubSub();
+      unsubRoy();
+      unsubNotif();
     };
   }, [user.uid]);
 
@@ -273,6 +270,37 @@ export default function ArtistHome({ user, userData }: { user: any, userData: an
         <h1 className="text-4xl font-display uppercase tracking-tighter mb-2">Welcome, {user.displayName?.split(' ')[0] || 'Artist'}</h1>
         <p className="text-gray-400 font-sans tracking-wide">Track your performance, earnings & releases</p>
       </div>
+
+      {rewards.length > 0 && (
+        <div className="mb-10 grid gap-4">
+          {rewards.map(reward => (
+            <motion.div 
+              key={reward.id}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="bg-gradient-to-r from-[#9d4edd] to-[#c77dff] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(157,78,221,0.3)]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center text-white shrink-0">
+                  <Star size={24} />
+                </div>
+                <div>
+                  <p className="font-display font-black uppercase text-sm tracking-widest text-white leading-tight">Reward Unlocked!</p>
+                  <p className="text-[10px] font-sans text-white/80 uppercase tracking-widest font-bold">
+                    {reward.type === 'free_song' ? 'You have 1 Free Release available.' : 'You have earned 1 Month of Unlimited Gati Plan for free.'}
+                  </p>
+                </div>
+              </div>
+              <Link 
+                to={reward.type === 'free_song' ? '/dashboard/upload' : '/dashboard/referrals'}
+                className="w-full sm:w-auto bg-black text-white px-8 py-3 font-display uppercase font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all text-center"
+              >
+                {reward.type === 'free_song' ? 'Use Now' : 'Claim Reward'}
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {showExpiryAlert && (
         <div className="bg-red-500 text-white p-4 border border-red-600 flex flex-col sm:flex-row items-center justify-between gap-4 mb-10 group animate-pulse hover:animate-none transition-all">

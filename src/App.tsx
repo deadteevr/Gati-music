@@ -19,6 +19,8 @@ const BlogPage = lazy(() => import('./pages/BlogPage'));
 const RefundPage = lazy(() => import('./pages/RefundPage'));
 const SmartLink = lazy(() => import('./pages/artist/SmartLink'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
+const RequestAccount = lazy(() => import('./pages/RequestAccount'));
+const AuthAction = lazy(() => import('./pages/AuthAction'));
 
 import { ErrorProvider } from './components/ErrorProvider';
 import { handleFirestoreError, OperationType } from './firebase';
@@ -146,7 +148,9 @@ export default function App() {
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogPage />} />
               <Route path="/refund-policy" element={<RefundPage />} />
+              <Route path="/auth-action" element={<AuthAction />} />
               <Route path="/release/:id" element={<SmartLink />} />
+              <Route path="/request-account" element={<RequestAccount />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           )}

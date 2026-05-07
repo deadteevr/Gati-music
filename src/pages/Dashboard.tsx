@@ -1,8 +1,8 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert } from 'lucide-react';
+import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert, Users } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useState, lazy, Suspense, useEffect } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getRemainingDays, isPlanActive, formatExpiryDate } from '../lib/planUtils';
 import PremiumLoader from '../components/PremiumLoader';
@@ -16,6 +16,7 @@ const ArtistWithdrawal = lazy(() => import('./artist/ArtistWithdrawal'));
 const ArtistNotifications = lazy(() => import('./artist/ArtistNotifications'));
 const ArtistProfile = lazy(() => import('./artist/ArtistProfile'));
 const ArtistMarketing = lazy(() => import('./artist/ArtistMarketing'));
+const ArtistReferrals = lazy(() => import('./artist/ArtistReferrals'));
 const Maintenance = lazy(() => import('./Maintenance'));
 
 export default function Dashboard({ user, userData, globalSettings }: { user: any, userData: any, globalSettings: any }) {
@@ -48,6 +49,22 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
     return unsub;
   }, [user]);
 
+  useEffect(() => {
+    if (!user || userData?.role === 'admin' || !userData || userData.referralCode) return;
+    
+    const assignCode = async () => {
+      try {
+        const { generateReferralCode, saveReferralCode } = await import('../lib/referralUtils');
+        const code = await generateReferralCode(userData.displayName || userData.name || 'GATI');
+        await saveReferralCode(user.uid, code);
+      } catch (e) {
+        console.error("Auto-assign referral code failed:", e);
+      }
+    };
+    
+    assignCode();
+  }, [user, userData]);
+
   const handleLogout = async () => {
     await logout();
   };
@@ -60,6 +77,7 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
     { name: "Notifications", path: "/dashboard/notifications", icon: <Bell size={20} /> },
     { name: "Royalties", path: "/dashboard/royalties", icon: <IndianRupee size={20} /> },
     { name: "Withdrawals", path: "/dashboard/withdrawals", icon: <IndianRupee size={20} /> },
+    { name: "Referrals", path: "/dashboard/referrals", icon: <Users size={20} /> },
     { name: "Profile", path: "/dashboard/profile", icon: <User size={20} /> },
   ];
 
@@ -237,6 +255,7 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
               <Route path="/withdrawals" element={isMaintenance('Withdrawals') ? <Maintenance {...mntProps} /> : <ArtistWithdrawal user={user} userData={userData} />} />
               <Route path="/notifications" element={<ArtistNotifications user={user} userData={userData} />} />
               <Route path="/marketing" element={isMaintenance('Analytics') ? <Maintenance {...mntProps} /> : <ArtistMarketing user={user} userData={userData} />} />
+              <Route path="/referrals" element={<ArtistReferrals user={user} userData={userData} />} />
               <Route path="/profile" element={<ArtistProfile user={user} userData={userData} />} />
             </Routes>
           </Suspense>

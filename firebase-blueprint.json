@@ -9,6 +9,7 @@
         "role": { "type": "string", "enum": ["artist", "admin"] },
         "name": { "type": "string" },
         "email": { "type": "string" },
+        "referralCode": { "type": "string", "description": "Unique code for referrals" },
         "createdAt": { "type": "string", "format": "date-time" },
         "subscription": {
           "type": "object",
@@ -103,12 +104,79 @@
         "status": { "type": "string", "enum": ["new", "read", "resolved"] }
       },
       "required": ["uid", "message", "createdAt", "status"]
+    },
+    "AccountRequest": {
+      "title": "AccountRequest",
+      "description": "A request from an artist to join the platform.",
+      "type": "object",
+      "properties": {
+        "applicantName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "instagram": { "type": "string" },
+        "spotifyLink": { "type": "string" },
+        "referralCode": { "type": "string", "description": "Optional code if referred" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["applicantName", "email", "status", "createdAt"]
+    },
+    "Referral": {
+      "title": "Referral",
+      "description": "A link between a referrer and a new artist.",
+      "type": "object",
+      "properties": {
+        "referrerUid": { "type": "string" },
+        "refereeUid": { "type": "string" },
+        "refereeEmail": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "successful"] },
+        "hasUploaded": { "type": "boolean" },
+        "hasPaid": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referrerUid", "refereeEmail", "status", "createdAt"]
+    },
+    "Reward": {
+      "title": "Reward",
+      "description": "A reward earned through referrals.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "type": { "type": "string", "enum": ["free_song", "free_plan_month"] },
+        "status": { "type": "string", "enum": ["active", "used"] },
+        "earnedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "type", "status", "earnedAt"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Store users"
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/AccountRequest" },
+      "description": "Store artist account requests"
+    },
+    "/referrals/{referralId}": {
+      "schema": { "$ref": "#/entities/Referral" },
+      "description": "Store referral links"
+    },
+    "/rewards/{rewardId}": {
+      "schema": { "$ref": "#/entities/Reward" },
+      "description": "Store earned rewards"
+    },
+    "/referralCodes/{code}": {
+      "schema": {
+        "title": "ReferralCode",
+        "type": "object",
+        "properties": {
+          "uid": { "type": "string" },
+          "code": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Public registry for referral code lookups"
     },
     "/submissions/{submissionId}": {
       "schema": { "$ref": "#/entities/Submission" },

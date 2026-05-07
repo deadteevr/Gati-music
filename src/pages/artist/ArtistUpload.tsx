@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert, Mail, AlertCircle, Info, HelpCircle } from 'lucide-react';
+import { Plus, X, CheckCircle, CheckCircle2, Sparkles, ShieldAlert, Mail, AlertCircle, Info, HelpCircle, Gift, ArrowRight } from 'lucide-react';
 import { geminiService } from '../../services/geminiService';
 import { AIActionButton } from '../../components/AIComponents';
 import PremiumLoader from '../../components/PremiumLoader';
@@ -14,6 +14,8 @@ import { sendEmailVerification } from 'firebase/auth';
 
 import { useGlobalError } from '../../components/ErrorProvider';
 
+import { updateReferralProgress, consumeReward } from '../../lib/referralUtils';
+
 export default function ArtistUpload({ user, userData }: { user: any, userData: any }) {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -21,8 +23,10 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
+  const [rewards, setRewards] = useState<any[]>([]);
   
-  const isSubscribed = isPlanActive(userData?.subscription);
+  const activeFreeSong = rewards.find(r => r.type === 'free_song' && r.status === 'active');
+  const isSubscribed = isPlanActive(userData?.subscription) || !!activeFreeSong;
   const isEmailVerified = user?.emailVerified;
   const daysLeft = getRemainingDays(userData?.subscription?.expiryDate);
 
@@ -89,7 +93,18 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     if (id) {
       fetchExistingRelease();
     }
-  }, [id]);
+    fetchRewards();
+  }, [id, user.uid]);
+
+  const fetchRewards = async () => {
+    try {
+      const q = query(collection(db, 'rewards'), where('uid', '==', user.uid), where('status', '==', 'active'));
+      const snap = await getDocs(q);
+      setRewards(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error("Error fetching rewards:", e);
+    }
+  };
 
   const fetchExistingRelease = async () => {
     setFetching(true);
@@ -492,6 +507,22 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             'subscription.uploadCount': newUploadCount,
             'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
           });
+
+          // NEW: Referral Progress
+          if (newUploadCount === 1) {
+            await updateReferralProgress(user.uid, 'upload');
+          }
+
+          // NEW: If we used a reward, consume it
+          if (activeFreeSong) {
+            await consumeReward(activeFreeSong.id);
+            // If they were expired, un-expire them temporarily for this release
+            if (userData.subscription?.status === 'Expired') {
+               await updateDoc(doc(db, 'users', user.uid), {
+                 'subscription.status': 'Active' // Manual fix to allow the submission to be "Reviewing" correctly
+               });
+            }
+          }
         } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, 'users', false);
           // Fixed issues with business logic failure
@@ -589,6 +620,18 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             : "You are currently on the Free plan. Upgrade to a distribution plan to upload your tracks to streaming platforms."
           }
         </p>
+        
+        <div className="bg-[#ccff00]/5 border border-[#ccff00]/10 p-6 mb-8 rounded-xl max-w-md">
+          <p className="text-xs text-gray-500 font-sans uppercase tracking-widest mb-3">Hack: Unlock with Referrals</p>
+          <p className="text-sm text-[#ccff00] font-bold font-sans mb-4">Refer 1 friend to unlock 1 Free Release instantly.</p>
+          <button 
+            onClick={() => navigate('/dashboard/referrals')}
+            className="flex items-center gap-2 mx-auto text-[10px] font-display uppercase font-black tracking-widest text-white hover:text-[#ccff00]"
+          >
+            Invite Friends <ArrowRight size={12} />
+          </button>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4">
           <button 
             onClick={() => navigate('/pricing')}
@@ -665,6 +708,18 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
   return (
     <div className="max-w-3xl">
+      {activeFreeSong && (
+        <div className="mb-6 p-4 bg-[#ccff00]/10 border border-[#ccff00]/20 rounded-xl flex items-center justify-between animate-pulse">
+          <div className="flex items-center gap-3">
+            <Gift className="text-[#ccff00]" size={20} />
+            <div>
+              <p className="text-[10px] font-display uppercase tracking-widest text-[#ccff00] font-black">Reward Applied</p>
+              <p className="text-sm text-white font-bold font-sans uppercase">Free Song Release Active</p>
+            </div>
+          </div>
+          <div className="text-[9px] font-mono text-gray-500 uppercase">Will be used on submission</div>
+        </div>
+      )}
       {loading && (
         <div className="relative">
           <PremiumLoader progress={uploadProgress} message={uploadMessage} />
