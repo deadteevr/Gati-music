@@ -5,6 +5,10 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,10 +70,21 @@ async function startServer() {
       const { params_to_sign } = req.body;
       const apiSecret = process.env.CLOUDINARY_API_SECRET;
       const apiKey = process.env.CLOUDINARY_API_KEY;
+      const cloudName = process.env.VITE_CLOUDINARY_CLOUD_NAME;
+
+      if (!params_to_sign) {
+        return res.status(400).json({ error: "Missing params_to_sign in request body." });
+      }
 
       if (!apiSecret || !apiKey) {
-        return res.status(500).json({ error: "Cloudinary credentials not configured on server." });
+        console.error("[Cloudinary] Credentials missing in environment.");
+        return res.status(500).json({ 
+          error: "Cloudinary credentials not configured on server.",
+          details: "API Key or Secret is missing in server environment variables."
+        });
       }
+
+      console.log(`[Cloudinary] Signing request for params:`, params_to_sign);
 
       // Sort params alphabetically and join with &
       const sortedParams = Object.keys(params_to_sign)
@@ -82,10 +97,15 @@ async function startServer() {
         .update(sortedParams + apiSecret)
         .digest("hex");
 
-      res.json({ signature, apiKey });
+      res.json({ 
+        signature, 
+        apiKey, 
+        cloudName,
+        timestamp: params_to_sign.timestamp 
+      });
     } catch (error) {
       console.error("Cloudinary signature error:", error);
-      res.status(500).json({ error: "Failed to generate signature" });
+      res.status(500).json({ error: "Failed to generate signature", details: error instanceof Error ? error.message : String(error) });
     }
   });
 

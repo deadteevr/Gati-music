@@ -391,23 +391,32 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     console.log(`[Cloudinary] Preparing signed upload for: ${file.name} (${type})`);
     
     // 1. Get Signature from our backend
-    const sigResponse = await fetch('/api/cloudinary-signature', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        params_to_sign: {
-          timestamp,
-          folder
-        }
-      })
-    });
-    
-    if (!sigResponse.ok) {
-      const errData = await sigResponse.json().catch(() => ({}));
-      throw new Error(errData.error || "Failed to get upload authorization from server.");
+    let sigData;
+    try {
+      const sigResponse = await fetch('/api/cloudinary-signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          params_to_sign: {
+            timestamp,
+            folder
+          }
+        })
+      });
+      
+      sigData = await sigResponse.json().catch(() => ({}));
+
+      if (!sigResponse.ok) {
+        console.error("[Cloudinary] Signature Error:", sigData);
+        throw new Error(sigData.details || sigData.error || "Failed to get upload authorization from server.");
+      }
+    } catch (err: any) {
+      console.error("[Cloudinary] Authorization Fetch Failed:", err);
+      throw new Error(`Authorization Failed: ${err.message}`);
     }
     
-    const { signature, apiKey } = await sigResponse.json();
+    const { signature, apiKey, cloudName: serverCloudName } = sigData;
+    const finalCloudName = serverCloudName || cloudName;
 
     // 2. Perform Upload with XHR for better progress and domain handling
     return new Promise((resolve, reject) => {
@@ -415,7 +424,7 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
       const xhr = new XMLHttpRequest();
       const resourceType = type === 'audio' ? 'video' : 'image';
       
-      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${finalCloudName}/${resourceType}/upload`);
       
       // Critical for domain-restricted accounts: Ensure the request identifies itself correctly
       xhr.withCredentials = false;
@@ -438,9 +447,17 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             reject(new Error("Failed to parse Cloudinary response."));
           }
         } else {
-          console.error(`[Cloudinary] Error Response (${xhr.status}):`, xhr.responseText);
-          onStatus('error');
-          reject(new Error(`Cloudinary Error (${xhr.status}). Ensure gatimusic.in is allowlisted.`));
+          try {
+            const errResp = JSON.parse(xhr.responseText);
+            console.error(`[Cloudinary] Error Response (${xhr.status}):`, errResp);
+            const detail = errResp.error?.message || "Unknown Cloudinary Error";
+            onStatus('error');
+            reject(new Error(`Cloudinary Upload Failed (${xhr.status}): ${detail}`));
+          } catch (e) {
+            console.error(`[Cloudinary] Error Response (${xhr.status}):`, xhr.responseText);
+            onStatus('error');
+            reject(new Error(`Cloudinary Error (${xhr.status}).`));
+          }
         }
       };
 
