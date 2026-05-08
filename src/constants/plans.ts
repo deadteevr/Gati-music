@@ -21,12 +21,19 @@ export const PLANS: Plan[] = [
     desc: "Perfect for single releases",
     type: 'artist',
     features: [
-      "150+ Streaming Platforms",
+      "Distribution on 150+ Streaming Platforms",
+      "Spotify/Apple Music/YouTube Music/JioSaavn/Wynk & More",
       "80% Royalties to Artist",
       "YouTube Content ID Included",
-      "Fast 2-3 Day Delivery",
-      "Direct WhatsApp Support",
-      "Metadata Error Check"
+      "Fast 2–3 Day Delivery",
+      "Lyrics Distribution Support",
+      "Instagram/Facebook Audio Library Support",
+      "Explicit Content Tag Support",
+      "WAV & MP3 Upload Support",
+      "Cover Art & Metadata Check",
+      "Release Scheduling",
+      "Royalty Dashboard Access",
+      "WhatsApp Chat + Call Support"
     ]
   },
   {
@@ -39,12 +46,16 @@ export const PLANS: Plan[] = [
     popular: true,
     type: 'artist',
     features: [
+      "Everything in Basic Plan",
       "Unlimited Songs & Albums",
-      "80% Royalties to Artist",
-      "YouTube Official Artist Channel",
       "Spotify Verified Profile Help",
-      "Priority Support (2hr Reply)",
-      "Instagram & Facebook Lyrics"
+      "YouTube Official Artist Channel Help",
+      "Instagram/Facebook Lyrics Support",
+      "Reels & Shorts Audio Availability",
+      "Multi-Artist Collaboration Support",
+      "Release Tracking Dashboard",
+      "Playlist Submission Eligibility",
+      "WhatsApp Chat + Call Support"
     ]
   },
   {
@@ -57,11 +68,13 @@ export const PLANS: Plan[] = [
     type: 'artist',
     features: [
       "Everything in Monthly Plan",
-      "Effective ₹83/month Billing",
-      "Custom Release Strategies",
+      "Effective ₹83/Month Billing",
       "Promo Opportunity Access",
-      "Early Beta Feature Access",
-      "Priority Metadata Approval"
+      "Artist Branding Guidance",
+      "Release Strategy Guidance",
+      "Catalog Management Support",
+      "Early Access to New Features",
+      "WhatsApp Chat + Call Support"
     ]
   },
   {
@@ -78,13 +91,12 @@ export const PLANS: Plan[] = [
       "Centralized Team Dashboard",
       "Bulk Upload System",
       "Draft Saving Mode",
-      "Fastest Approval Priority",
       "Smart Link Generation",
       "Release Scheduling",
       "Label Analytics Overview",
       "Revenue/Earnings Overview",
       "Verification Badge Eligibility",
-      "Dedicated Account Manager"
+      "WhatsApp Chat + Call Support"
     ]
   },
   {
@@ -104,9 +116,9 @@ export const PLANS: Plan[] = [
       "Activity Logging System",
       "Featured Label Eligibility",
       "Bulk Distribution Tools",
-      "Priority 24/7 Support",
       "Global PR Opportunities",
-      "Metadata Optimization"
+      "Metadata Optimization",
+      "WhatsApp Chat + Call Support"
     ]
   }
 ];

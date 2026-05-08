@@ -11,14 +11,32 @@ import {
   Building2,
   ChevronRight,
   Plus,
-  ArrowRight
+  ArrowRight,
+  TrendingUp,
+  Music,
+  Award,
+  Headphones,
+  MessageSquare,
+  Monitor,
+  Layout,
+  Globe
 } from 'lucide-react';
 import { PLANS, formatPrice, Plan } from '../constants/plans';
 
 const WHATSAPP_NUMBER = "917626841258";
 
+function PlanIcon({ planId, isPopular }: { planId: string, isPopular?: boolean }) {
+  const iconProps = { size: 24, className: isPopular ? 'text-[#B6FF00]' : planId === 'yearly' ? 'text-[#8B5CF6]' : 'text-white' };
+  
+  if (planId === 'basic') return <Music {...iconProps} />;
+  if (planId === 'monthly') return <Zap {...iconProps} />;
+  if (planId === 'yearly') return <TrendingUp {...iconProps} />;
+  return <Award {...iconProps} />;
+}
+
 export default function PricingPage() {
   const [currency, setCurrency] = useState<'INR' | 'USD' | 'BOTH'>('BOTH');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -96,7 +114,7 @@ export default function PricingPage() {
             "@context": "https://schema.org",
             "@type": "Product",
             "name": "Basic Distribution Plan",
-            "description": "Release your music on Spotify, Apple Music and 250+ platforms with fast delivery and 80% royalties.",
+            "description": "Distribute your music on 150+ platforms with 80% royalties, Content ID, and WhatsApp support for just ₹75 per song.",
             "image": "https://www.gatimusic.in/basic-plan.jpg",
             "brand": {
               "@type": "Brand",
@@ -114,7 +132,7 @@ export default function PricingPage() {
             "@context": "https://schema.org",
             "@type": "Product",
             "name": "Monthly Distribution Plan",
-            "description": "Monthly music distribution plan with unlimited releases, verified artist profiles, and 80% royalties.",
+            "description": "Unlimited distribution plan with Verified Profile help, Reels audio availability, and WhatsApp Chat + Call Support.",
             "image": "https://www.gatimusic.in/monthly-plan.jpg",
             "brand": {
               "@type": "Brand",
@@ -132,7 +150,7 @@ export default function PricingPage() {
             "@context": "https://schema.org",
             "@type": "Product",
             "name": "Yearly Distribution Plan",
-            "description": "Best value yearly plan for artists with unlimited uploads, priority support, and maximum earnings.",
+            "description": "Best value yearly plan with artist branding guidance, release strategy, and catalog management support.",
             "image": "https://www.gatimusic.in/yearly-plan.jpg",
             "brand": {
               "@type": "Brand",
@@ -150,96 +168,181 @@ export default function PricingPage() {
       </script>
       
       {/* Header */}
-      <header className="fixed top-0 w-full px-4 md:px-6 py-4 flex justify-between items-center z-50 bg-[#0A0A0A]/80 md:backdrop-blur-xl border-b border-[#1a1a1a]">
-        <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-[#B6FF00] transition-colors group">
-          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-display uppercase tracking-widest text-[10px] md:text-xs font-bold">Back</span>
+      <header className="fixed top-0 w-full px-4 md:px-6 py-4 flex justify-between items-center z-50 bg-[#0A0A0A]/90 backdrop-blur-2xl border-b border-white/5">
+        <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-[#B6FF00] transition-all group">
+          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#B6FF00] group-hover:text-black transition-all">
+            <ArrowLeft size={16} />
+          </div>
+          <span className="font-display uppercase tracking-widest text-[10px] font-black">Home</span>
         </Link>
-        <div className="font-display font-black tracking-tighter flex items-center gap-1">
-          <span className="text-[#B6FF00] text-2xl">gati</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] mt-2"></span>
+        <div className="font-display font-black tracking-tighter flex items-center gap-1.5 cursor-default">
+          <span className="text-[#B6FF00] text-3xl">gati</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-tr from-[#8B5CF6] to-[#00D8F5] animate-pulse"></div>
+        </div>
+        <div className="hidden md:block">
+          <a href={`https://wa.me/${WHATSAPP_NUMBER}`} className="text-[10px] uppercase font-black tracking-widest text-gray-500 hover:text-[#B6FF00] transition-colors">Help Center</a>
         </div>
       </header>
 
-      <section className="pt-40 pb-20 px-6 max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl md:text-7xl font-display uppercase tracking-tighter mb-6">
-            Global <span className="text-[#B6FF00]">Pricing</span>
-          </h1>
-          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10">
-            Transparent plans for independent artists and labels worldwide.
-          </p>
+      <section className="pt-44 pb-24 px-6 max-w-7xl mx-auto">
+        <div className="text-center mb-16 relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#B6FF00]/5 blur-[120px] rounded-full -z-10 pointer-events-none opacity-50"></div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#B6FF00]/10 border border-[#B6FF00]/20 rounded-full mb-6"
+          >
+            <Zap size={14} className="text-[#B6FF00]" />
+            <span className="text-[10px] font-display font-black uppercase tracking-[0.2em] text-[#B6FF00]">Global Distribution</span>
+          </motion.div>
 
-          <div className="inline-flex bg-white/5 p-1 rounded-full border border-white/10 mb-12">
-            <button 
-              onClick={() => setCurrency('BOTH')}
-              className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${currency === 'BOTH' ? 'bg-[#B6FF00] text-black' : 'text-gray-500 hover:text-white'}`}
-            >
-              Dual Pricing (INR/USD)
-            </button>
-            <button 
-              onClick={() => setCurrency('INR')}
-              className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${currency === 'INR' ? 'bg-[#B6FF00] text-black' : 'text-gray-500 hover:text-white'}`}
-            >
-              INR Only
-            </button>
-            <button 
-              onClick={() => setCurrency('USD')}
-              className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${currency === 'USD' ? 'bg-[#B6FF00] text-black' : 'text-gray-500 hover:text-white'}`}
-            >
-              USD Only
-            </button>
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-6xl md:text-8xl font-display uppercase font-black tracking-tighter mb-8 leading-[0.9]"
+          >
+            Choose Your <br/> <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500">Distribution Plan</span>
+          </motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 font-medium leading-relaxed"
+          >
+            Release your music globally, reach new fans on every major platform, and keep 100% of your ownership. Simple pricing, zero hidden fees.
+          </motion.p>
+
+          <div className="flex flex-col items-center gap-8">
+            {/* Billing Toggle Style UI */}
+            <div className="inline-flex bg-[#111] p-1.5 rounded-2xl border border-white/5 relative shadow-inner">
+               <div 
+                 className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-xl transition-all duration-300 ease-out z-0 shadow-xl ${billingCycle === 'yearly' ? 'translate-x-full' : 'translate-x-0'}`}
+               ></div>
+               <button 
+                 onClick={() => setBillingCycle('monthly')}
+                 className={`relative z-10 px-8 py-3 rounded-xl text-[11px] uppercase tracking-widest font-black transition-colors duration-300 ${billingCycle === 'monthly' ? 'text-black' : 'text-gray-500 hover:text-gray-300'}`}
+               >
+                 Monthly Billing
+               </button>
+               <button 
+                 onClick={() => setBillingCycle('yearly')}
+                 className={`relative z-10 px-8 py-3 rounded-xl text-[11px] uppercase tracking-widest font-black transition-colors duration-300 ${billingCycle === 'yearly' ? 'text-black' : 'text-gray-500 hover:text-gray-300'}`}
+               >
+                 Yearly Billing <span className="ml-1 text-[9px] opacity-70">(Save 40%)</span>
+               </button>
+            </div>
+
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setCurrency('BOTH')}
+                className={`text-[9px] uppercase tracking-widest font-black pb-1 border-b-2 transition-all ${currency === 'BOTH' ? 'border-[#B6FF00] text-white' : 'border-transparent text-gray-600 hover:text-gray-400'}`}
+              >
+                Dual (INR/USD)
+              </button>
+              <button 
+                onClick={() => setCurrency('INR')}
+                className={`text-[9px] uppercase tracking-widest font-black pb-1 border-b-2 transition-all ${currency === 'INR' ? 'border-[#B6FF00] text-white' : 'border-transparent text-gray-600 hover:text-gray-400'}`}
+              >
+                INR Only
+              </button>
+              <button 
+                onClick={() => setCurrency('USD')}
+                className={`text-[9px] uppercase tracking-widest font-black pb-1 border-b-2 transition-all ${currency === 'USD' ? 'border-[#B6FF00] text-white' : 'border-transparent text-gray-600 hover:text-gray-400'}`}
+              >
+                USD Only
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Artist Plans */}
-        <div className="mb-24">
-          <div className="flex items-center gap-3 mb-10 justify-center">
-            <Users className="text-[#B6FF00]" size={24} />
-            <h2 className="text-2xl font-display uppercase tracking-widest font-black">Artist Plans</h2>
+        <div className="mb-32">
+          <div className="flex items-center gap-3 mb-12 justify-center">
+             <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#B6FF00]/50"></div>
+             <Users className="text-[#B6FF00]" size={20} />
+             <h2 className="text-sm font-display uppercase tracking-[0.3em] font-black text-gray-500">Artist Tier Plans</h2>
+             <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#B6FF00]/50"></div>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-3 gap-8 items-stretch">
             {artistPlans.map((plan, i) => (
               <motion.div 
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className={`p-8 rounded-3xl border ${plan.popular ? 'border-[#B6FF00] bg-[#B6FF00]/5' : 'border-[#222] bg-[#111]/30'} flex flex-col relative group`}
+                className={`flex flex-col group transition-all duration-500 ${
+                  plan.popular ? 'lg:scale-105 z-10' : ''
+                }`}
               >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#B6FF00] text-black text-[9px] font-display uppercase font-black px-4 py-1 rounded-full tracking-widest shadow-[0_0_20px_rgba(182,255,0,0.3)]">
-                    Most Popular
-                  </div>
-                )}
-                <div className="mb-8">
-                  <h2 className="text-2xl font-display uppercase tracking-widest mb-2 font-black group-hover:text-[#B6FF00] transition-colors">{plan.name}</h2>
-                  <p className="text-gray-500 text-sm font-sans mb-6">{plan.desc}</p>
-                  <div className="flex items-end gap-1">
-                    <span className="text-4xl font-display font-black">{formatPrice(plan, currency)}</span>
-                    <span className="text-gray-500 text-[10px] uppercase tracking-widest pb-1 ml-2">/ {plan.period}</span>
-                  </div>
-                </div>
+                <div className={`flex-grow p-10 rounded-[2.5rem] border relative overflow-hidden transition-all duration-500 ${
+                  plan.popular 
+                    ? 'bg-[#0F0F0F] border-[#B6FF00]/40 shadow-[0_20px_60px_rgba(182,255,0,0.15)] ring-1 ring-[#B6FF00]/20' 
+                    : 'bg-[#111]/30 border-white/5 hover:border-white/10 hover:bg-[#111]/50'
+                }`}>
+                  {/* Subtle Glow Background */}
+                  {plan.popular && (
+                    <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#B6FF00]/10 blur-[80px] rounded-full pointer-events-none group-hover:bg-[#B6FF00]/20 transition-all duration-700"></div>
+                  )}
 
-                <div className="space-y-4 mb-10 flex-grow">
-                  {plan.features.map((feature, j) => (
-                    <div key={j} className="flex gap-3 text-sm text-gray-400">
-                      <CheckCircle2 size={16} className="text-[#B6FF00] flex-shrink-0 mt-0.5" />
-                      <span className="leading-tight">{feature}</span>
+                  {plan.popular && (
+                    <div className="absolute top-0 right-0 left-0 flex justify-center">
+                      <div className="bg-[#B6FF00] text-black text-[9px] font-display font-black uppercase tracking-[0.2em] px-6 py-2 rounded-b-2xl shadow-[0_4px_20px_rgba(182,255,0,0.4)] z-20">
+                        Most Popular
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                <div className="mt-auto">
-                  <a 
-                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I want to purchase the Gati Music ${plan.name} plan.`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`block w-full py-4 rounded-xl text-center font-display font-black uppercase tracking-widest transition-all ${plan.popular ? 'bg-[#B6FF00] text-black hover:bg-white' : 'bg-white text-black hover:bg-[#B6FF00]'}`}
-                  >
-                    Get Started
-                  </a>
+                  <div className="mb-12">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-transform duration-500 group-hover:scale-110 ${
+                      plan.popular ? 'bg-[#B6FF00]/10 text-[#B6FF00]' : plan.id === 'yearly' ? 'bg-[#8B5CF6]/10 text-[#8B5CF6]' : 'bg-white/5 text-white/40'
+                    }`}>
+                       <PlanIcon planId={plan.id} isPopular={plan.popular} />
+                    </div>
+                    
+                    <h2 className={`text-2xl font-display font-black uppercase tracking-widest mb-3 transition-colors ${plan.popular ? 'text-[#B6FF00]' : 'text-white'}`}>{plan.name}</h2>
+                    <p className="text-gray-500 text-xs font-sans font-medium uppercase tracking-widest opacity-80">{plan.desc}</p>
+                    
+                    <div className="mt-8 flex items-baseline gap-2">
+                      <span className="text-5xl font-display font-black tracking-tighter tabular-nums leading-none">{formatPrice(plan, currency)}</span>
+                      <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest opacity-60">/ {plan.period}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-12 flex-grow">
+                    {plan.features.map((feature, j) => (
+                      <div key={j} className="flex gap-4 group/item">
+                        <div className={`mt-1 w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                          plan.popular ? 'border-[#B6FF00]/30 group-hover/item:bg-[#B6FF00] group-hover/item:text-black' : 'border-white/10 group-hover/item:border-white'
+                        }`}>
+                           <CheckCircle2 size={10} className={plan.popular ? 'text-[#B6FF00] group-hover/item:text-inherit' : 'text-gray-600 group-hover/item:text-white'} />
+                        </div>
+                        <span className="text-[13px] text-gray-400 group-hover/item:text-white transition-colors leading-tight font-medium">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto pt-8 border-t border-white/5">
+                    <a 
+                      href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I want to purchase the Gati Music ${plan.name} plan.`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`relative overflow-hidden group/btn block w-full py-5 rounded-[1.25rem] text-center font-display font-black uppercase tracking-widest text-[11px] transition-all duration-300 ${
+                        plan.popular 
+                          ? 'bg-[#B6FF00] text-black hover:shadow-[0_0_40px_rgba(182,255,0,0.3)] hover:scale-[1.02]' 
+                          : plan.id === 'yearly'
+                          ? 'bg-[#8B5CF6] text-white hover:bg-white hover:text-black shadow-lg shadow-[#8B5CF6]/10'
+                          : 'bg-white text-black hover:bg-[#B6FF00] hover:shadow-[0_0_30px_rgba(182,255,0,0.2)]'
+                      }`}
+                    >
+                      <span className="relative z-10 flex items-center justify-center gap-2">
+                        Get Started <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                      </span>
+                    </a>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -247,14 +350,16 @@ export default function PricingPage() {
         </div>
 
         {/* Label Plans */}
-        <div className="pt-20 border-t border-white/5">
-          <div className="flex flex-col items-center mb-12 text-center">
-            <Building2 className="text-[#8B5CF6] mb-4" size={32} />
-            <h2 className="text-4xl font-display uppercase tracking-tighter mb-4">Music <span className="text-[#8B5CF6]">Label</span> Plans</h2>
-            <p className="text-gray-500 max-w-xl text-sm">Designed for managers, labels, and teams who need multi-artist management and centralized control.</p>
+        <div className="pt-32 border-t border-white/5">
+          <div className="flex flex-col items-center mb-16 text-center">
+            <div className="w-16 h-16 rounded-[2rem] bg-[#8B5CF6]/10 flex items-center justify-center mb-6">
+              <Building2 className="text-[#8B5CF6]" size={32} />
+            </div>
+            <h2 className="text-4xl md:text-5xl font-display uppercase font-black tracking-tighter mb-4 leading-none">Music <span className="text-[#8B5CF6]">Label</span> Plans</h2>
+            <p className="text-gray-500 max-w-xl text-lg font-medium">Empower your entire roster with advanced management tools and dedicated support systems.</p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto items-stretch">
             {labelPlans.map((plan, i) => (
               <motion.div 
                 key={i}
@@ -262,58 +367,89 @@ export default function PricingPage() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className={`p-10 rounded-3xl border ${plan.popular ? 'border-[#8B5CF6] bg-[#8B5CF6]/5' : 'border-[#222] bg-[#111]/30'} flex flex-col relative group`}
+                className={`flex flex-col group h-full`}
               >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#8B5CF6] text-white text-[9px] font-display uppercase font-black px-4 py-1 rounded-full tracking-widest shadow-[0_0_20px_rgba(139,92,246,0.3)]">
-                    Professional Choice
-                  </div>
-                )}
-                <div className="mb-10">
-                  <h2 className="text-3xl font-display uppercase tracking-widest mb-3 font-black group-hover:text-[#8B5CF6] transition-colors">{plan.name}</h2>
-                  <p className="text-gray-400 text-sm font-sans mb-8">{plan.desc}</p>
-                  <div className="flex items-end gap-1">
-                    <span className="text-5xl font-display font-black">{formatPrice(plan, currency)}</span>
-                    <span className="text-gray-500 text-[10px] uppercase tracking-widest pb-2 ml-3">/ {plan.period}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 mb-12 flex-grow">
-                  {plan.features.map((feature, j) => (
-                    <div key={j} className="flex gap-3 text-sm text-gray-300">
-                      <Plus size={16} className="text-[#8B5CF6] flex-shrink-0 mt-0.5" />
-                      <span className="leading-tight">{feature}</span>
+                <div className={`flex-grow p-12 rounded-[3.5rem] border relative overflow-hidden transition-all duration-500 ${
+                  plan.popular 
+                    ? 'bg-[#0F0F0F] border-[#8B5CF6]/40 shadow-[0_30px_60px_rgba(139,92,246,0.1)] ring-1 ring-[#8B5CF6]/20' 
+                    : 'bg-[#111]/30 border-white/5 hover:border-white/10 hover:bg-[#111]/50'
+                }`}>
+                  {plan.popular && (
+                    <div className="absolute top-0 right-0 left-0 flex justify-center">
+                      <div className="bg-[#8B5CF6] text-white text-[9px] font-display font-black uppercase tracking-[0.2em] px-8 py-2.5 rounded-b-2xl shadow-[0_5px_20px_rgba(139,92,246,0.4)] z-20">
+                        Professional Choice
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                <div className="mt-auto">
-                  <a 
-                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I'm interested in the Gati Music ${plan.name} for my label.`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`block w-full py-5 rounded-xl text-center font-display font-black uppercase tracking-widest transition-all ${plan.popular ? 'bg-[#8B5CF6] text-white hover:bg-white hover:text-black' : 'bg-white text-black hover:bg-[#8B5CF6] hover:text-white'}`}
-                  >
-                    Setup My Label
-                  </a>
+                  <div className="mb-12">
+                    <div className="flex items-center gap-4 mb-6">
+                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${plan.popular ? 'bg-[#8B5CF6]/10 text-[#8B5CF6]' : 'bg-white/5 text-gray-500'}`}>
+                         {plan.id === 'pro-label' ? <Plus size={32} /> : <Globe size={32} />}
+                       </div>
+                    </div>
+                    <h2 className="text-3xl font-display uppercase font-black tracking-widest mb-3 text-white transition-colors">{plan.name}</h2>
+                    <p className="text-gray-500 text-xs font-sans mb-8 leading-relaxed font-black uppercase tracking-widest opacity-60">{plan.desc}</p>
+                    <div className="flex items-baseline gap-2">
+                       <span className="text-6xl font-display font-black leading-none tracking-tighter">{formatPrice(plan, currency)}</span>
+                       <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest opacity-60">/ {plan.period}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-16 flex-grow">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-[#8B5CF6] mb-6 flex items-center gap-2">
+                       <Layout size={12} /> Management Features
+                    </p>
+                    {plan.features.map((feature, j) => (
+                      <div key={j} className="flex gap-4 group/item items-center">
+                        <Plus size={14} className="text-[#8B5CF6] opacity-40 group-hover/item:opacity-100 transition-opacity" />
+                        <span className="text-[14px] text-gray-400 font-medium group-hover/item:text-white transition-colors leading-tight">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto">
+                    <a 
+                      href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I'm interested in the Gati Music ${plan.name} for my label.`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`block w-full py-6 rounded-[2rem] text-center font-display font-black uppercase tracking-widest text-[11px] transition-all duration-300 ${
+                        plan.popular 
+                          ? 'bg-[#8B5CF6] text-white hover:bg-white hover:text-black shadow-xl shadow-[#8B5CF6]/20' 
+                          : 'bg-white text-black hover:bg-[#8B5CF6] hover:text-white'
+                      }`}
+                    >
+                      Setup My Label
+                    </a>
+                  </div>
                 </div>
               </motion.div>
             ))}
           </div>
 
-          <div className="mt-20 bg-gradient-to-br from-[#111] to-black border border-white/5 p-12 rounded-[32px] flex flex-col md:flex-row items-center gap-10">
-            <div className="flex-1">
-              <h3 className="text-2xl font-display font-black uppercase mb-4 tracking-tighter">Managing massive rosters?</h3>
-              <p className="text-gray-400 text-sm font-sans leading-relaxed">
-                If you manage more than 20 artists or have high-volume catalogs (1000+ songs), we offer custom enterprise solutions with dedicated infrastructure and deeper royalty splits.
-              </p>
+          <div className="mt-24 relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#8B5CF6]/10 to-[#B6FF00]/10 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity rounded-[40px]"></div>
+            <div className="relative bg-[#0A0A0A] border border-white/5 p-12 md:p-16 rounded-[40px] flex flex-col md:flex-row items-center gap-12 overflow-hidden shadow-2xl">
+               <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+                 <Building2 size={300} />
+               </div>
+               <div className="flex-1 relative z-10">
+                 <div className="inline-flex items-center gap-2 px-4 py-1 bg-white/5 rounded-full mb-6 border border-white/10">
+                    <Monitor size={14} className="text-[#8B5CF6]" />
+                    <span className="text-[9px] uppercase font-black tracking-[0.2em] text-gray-400">Enterprise Solutions</span>
+                 </div>
+                 <h3 className="text-3xl md:text-4xl font-display font-black uppercase mb-6 tracking-tighter leading-none">Managing massive <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">rosters?</span></h3>
+                 <p className="text-gray-500 text-lg font-medium leading-relaxed max-w-xl">
+                   If you manage more than 20 artists or have high-volume catalogs (1000+ songs), we offer custom enterprise solutions with dedicated infrastructure and deeper royalty splits.
+                 </p>
+               </div>
+               <Link 
+                 to="/contact"
+                 className="px-12 py-6 bg-[#B6FF00] text-black font-display font-black uppercase tracking-[0.15em] text-[11px] rounded-2xl hover:bg-white hover:scale-105 transition-all shadow-xl shadow-[#B6FF00]/10 shrink-0 relative z-10"
+               >
+                 Request Custom Quote
+               </Link>
             </div>
-            <Link 
-              to="/contact"
-              className="px-10 py-5 bg-white text-black font-display font-black uppercase tracking-widest rounded-xl hover:bg-[#B6FF00] transition-colors shrink-0"
-            >
-              Request Custom Quote
-            </Link>
           </div>
         </div>
       </section>

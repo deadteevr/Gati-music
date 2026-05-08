@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import nodemailer from "nodemailer";
+import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,6 +57,35 @@ async function startServer() {
     } catch (error) {
       console.error("Error sending email:", error);
       res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+
+  // Cloudinary Signing Endpoint
+  app.post("/api/cloudinary-signature", (req, res) => {
+    try {
+      const { params_to_sign } = req.body;
+      const apiSecret = process.env.CLOUDINARY_API_SECRET;
+      const apiKey = process.env.CLOUDINARY_API_KEY;
+
+      if (!apiSecret || !apiKey) {
+        return res.status(500).json({ error: "Cloudinary credentials not configured on server." });
+      }
+
+      // Sort params alphabetically and join with &
+      const sortedParams = Object.keys(params_to_sign)
+        .sort()
+        .map(key => `${key}=${params_to_sign[key]}`)
+        .join("&");
+
+      const signature = crypto
+        .createHash("sha1")
+        .update(sortedParams + apiSecret)
+        .digest("hex");
+
+      res.json({ signature, apiKey });
+    } catch (error) {
+      console.error("Cloudinary signature error:", error);
+      res.status(500).json({ error: "Failed to generate signature" });
     }
   });
 

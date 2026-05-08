@@ -56,23 +56,46 @@
         "uid": { "type": "string" },
         "labelId": { "type": "string", "description": "ID of the label if submitted via label" },
         "managedArtistUid": { "type": "string", "description": "UID of the artist this release belongs to" },
-        "title": { "type": "string" },
+        "releaseType": { "type": "string", "enum": ["Single", "EP", "Album"] },
+        "title": { "type": "string", "description": "Release Title (Album or song title)" },
         "mainArtist": { "type": "string" },
         "featuringArtists": { "type": "array", "items": { "type": "string" } },
         "labelName": { "type": "string" },
         "pLine": { "type": "string" },
         "cLine": { "type": "string" },
-        "lyricist": { "type": "string" },
-        "producer": { "type": "string" },
-        "otherCredits": { "type": "string" },
         "scheduleDate": { "type": "string" },
         "mainSpotifyLink": { "type": "string" },
         "featureSpotifyLinks": { "type": "string" },
         "excludedPlatforms": { "type": "string" },
         "status": { "type": "string", "enum": ["Reviewing", "Processing", "Sent to Stores", "Live"] },
-        "audioUrl": { "type": "string" },
         "coverUrl": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "upc": { "type": "string" },
+        "primaryGenre": { "type": "array", "items": { "type": "string" } },
+        "secondaryGenre": { "type": "array", "items": { "type": "string" } },
+        "language": { "type": "array", "items": { "type": "string" } },
+        "copyrightYear": { "type": "string" },
+        "productionYear": { "type": "string" },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "audioUrl": { "type": "string" },
+              "isrc": { "type": "string" },
+              "lyricist": { "type": "string" },
+              "composer": { "type": "string" },
+              "producer": { "type": "string" },
+              "producerSpotify": { "type": "string" },
+              "otherCredits": { "type": "string" },
+              "isExplicit": { "type": "boolean" },
+              "lyrics": { "type": "string" },
+              "trackNumber": { "type": "integer" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "title", "mainArtist", "pLine", "cLine", "status", "createdAt"]
     },
