@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert, Users, LayoutDashboard } from 'lucide-react';
+import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert, Users, LayoutDashboard, Building2 } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useState, lazy, Suspense, useEffect } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
@@ -65,6 +65,8 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
     { name: "Profile", path: "/dashboard/profile", icon: <User size={20} /> },
   ];
 
+  const hasLabelRole = ['label_owner', 'label_manager'].includes(userData?.role);
+
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col md:flex-row">
       {/* Mobile Topbar */}
@@ -101,6 +103,15 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
         </div>
 
         <div className="flex-1 py-6 px-4 overflow-y-auto flex flex-col gap-2">
+          {hasLabelRole && (
+            <Link 
+              to="/label"
+              className="flex items-center gap-4 px-4 py-3 mb-2 bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 rounded-lg font-display uppercase tracking-widest text-[11px] font-black text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white transition-all group shadow-lg shadow-purple-500/10"
+            >
+              <Building2 size={18} />
+              Label Panel
+            </Link>
+          )}
           {/* Request Dashboard Quick Link */}
           <a 
             href="https://wa.me/917626841258?text=Hi, I want to request dashboard access."

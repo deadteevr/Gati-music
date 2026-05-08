@@ -7,13 +7,17 @@ import {
   Globe, 
   Mail, 
   Instagram, 
+  Twitter,
+  Facebook,
   Smartphone,
   ShieldCheck,
   CheckCircle2,
   X,
   Plus,
   Trash2,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
@@ -30,8 +34,12 @@ export default function LabelSettings({ user, userData }: { user: any, userData:
     contactEmail: '',
     website: '',
     instagram: '',
+    twitter: '',
+    facebook: '',
     phone: '',
-    description: ''
+    description: '',
+    primaryColor: '#8B5CF6',
+    isPublic: true
   });
 
   useEffect(() => {
@@ -49,8 +57,12 @@ export default function LabelSettings({ user, userData }: { user: any, userData:
             contactEmail: data.contactEmail || '',
             website: data.website || '',
             instagram: data.instagram || '',
+            twitter: data.twitter || '',
+            facebook: data.facebook || '',
             phone: data.phone || '',
-            description: data.description || ''
+            description: data.description || '',
+            primaryColor: data.primaryColor || '#8B5CF6',
+            isPublic: data.isPublic !== undefined ? data.isPublic : true
           });
         }
       } catch (err) {
@@ -135,6 +147,19 @@ export default function LabelSettings({ user, userData }: { user: any, userData:
                   <Upload size={18} />
                 </button>
               </div>
+
+              <div className="mt-8">
+                <label className="text-[10px] uppercase tracking-widest font-black text-gray-500 mb-2 block">Brand Color</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="color" 
+                    value={formData.primaryColor}
+                    onChange={e => setFormData({...formData, primaryColor: e.target.value})}
+                    className="w-10 h-10 rounded-lg bg-transparent border-none cursor-pointer"
+                  />
+                  <span className="text-xs font-mono text-gray-400 uppercase">{formData.primaryColor}</span>
+                </div>
+              </div>
             </div>
 
             <div className="md:col-span-2 space-y-6">
@@ -206,6 +231,32 @@ export default function LabelSettings({ user, userData }: { user: any, userData:
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest font-black text-gray-500 block">Twitter / X Handle</label>
+              <div className="relative">
+                <Twitter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
+                <input 
+                  type="text" 
+                  value={formData.twitter}
+                  onChange={e => setFormData({...formData, twitter: e.target.value})}
+                  className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm focus:outline-none focus:border-[#8B5CF6] transition-colors"
+                  placeholder="@mylabel"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest font-black text-gray-500 block">Facebook Page</label>
+              <div className="relative">
+                <Facebook className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
+                <input 
+                  type="text" 
+                  value={formData.facebook}
+                  onChange={e => setFormData({...formData, facebook: e.target.value})}
+                  className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm focus:outline-none focus:border-[#8B5CF6] transition-colors"
+                  placeholder="facebook.com/mylabel"
+                />
+              </div>
+            </div>
              <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest font-black text-gray-500 block">Office Phone</label>
               <div className="relative">
@@ -220,6 +271,45 @@ export default function LabelSettings({ user, userData }: { user: any, userData:
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Public Profile Settings */}
+        <section className="bg-[#111] border border-white/5 rounded-[40px] p-8 md:p-12">
+           <div className="flex items-center justify-between mb-8">
+              <h3 className="text-sm uppercase font-display font-black tracking-widest text-[#8B5CF6]">Public Visibility</h3>
+              <button 
+                type="button"
+                onClick={() => setFormData({...formData, isPublic: !formData.isPublic})}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] uppercase font-black tracking-widest border transition-all ${
+                  formData.isPublic 
+                    ? 'bg-[#ccff00]/10 border-[#ccff00]/30 text-[#ccff00]' 
+                    : 'bg-red-500/10 border-red-500/30 text-red-500'
+                }`}
+              >
+                {formData.isPublic ? <><Eye size={14} /> Public Profile Active</> : <><EyeOff size={14} /> Hidden from Public</>}
+              </button>
+           </div>
+           <p className="text-xs text-gray-400 mb-6 max-w-2xl">
+             When enabled, your label will have a public profile page showing your roster and recent releases. Link this on your social bios to showcase your team.
+           </p>
+           {formData.isPublic && (
+             <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-center justify-between gap-4 overflow-hidden">
+               <div className="flex-1 min-w-0">
+                 <p className="text-[10px] uppercase font-black tracking-widest text-gray-500 mb-1">Your Public URL</p>
+                 <p className="text-xs font-mono text-[#8B5CF6] truncate">https://gatimusic.in/label/{userData.labelId}</p>
+               </div>
+               <button 
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://gatimusic.in/label/${userData.labelId}`);
+                  alert('URL copied to clipboard!');
+                }}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] uppercase font-black tracking-widest transition-colors shrink-0"
+               >
+                 Copy
+               </button>
+             </div>
+           )}
         </section>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-1 bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 rounded-3xl p-6">

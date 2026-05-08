@@ -21,6 +21,7 @@ const SmartLink = lazy(() => import('./pages/artist/SmartLink'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
 const RequestAccount = lazy(() => import('./pages/RequestAccount'));
 const LabelPanel = lazy(() => import('./pages/LabelPanel'));
+const LabelSettings = lazy(() => import('./pages/label/LabelSettings'));
 
 import { ErrorProvider } from './components/ErrorProvider';
 import { handleFirestoreError, OperationType } from './firebase';
@@ -140,6 +141,9 @@ export default function App() {
                 : <Navigate to="/login" replace />} />
               <Route path="/label/*" element={user && ['label_owner', 'label_manager', 'admin'].includes(role!) ? 
                 <LabelPanel user={user} userData={userData} globalSettings={globalSettings} /> : 
+                <Navigate to="/login" replace />} />
+              <Route path="/label/settings" element={user && ['label_owner', 'label_manager', 'admin'].includes(role!) ? 
+                <LabelSettings user={user} userData={userData} /> : 
                 <Navigate to="/login" replace />} />
               <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
               <Route path="/terms" element={<TermsPage />} />
