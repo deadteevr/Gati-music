@@ -66,46 +66,74 @@ async function startServer() {
 
   // Cloudinary Signing Endpoint
   app.post("/api/cloudinary-signature", (req, res) => {
+    const requestId = crypto.randomUUID().slice(0, 8);
+    console.log(`[Cloudinary][${requestId}] Signature request received`);
+    
     try {
       const { params_to_sign } = req.body;
       const apiSecret = process.env.CLOUDINARY_API_SECRET;
       const apiKey = process.env.CLOUDINARY_API_KEY;
-      const cloudName = process.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const cloudName = process.env.VITE_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME;
 
-      if (!params_to_sign) {
-        return res.status(400).json({ error: "Missing params_to_sign in request body." });
-      }
-
-      if (!apiSecret || !apiKey) {
-        console.error("[Cloudinary] Credentials missing in environment.");
-        return res.status(500).json({ 
-          error: "Cloudinary credentials not configured on server.",
-          details: "API Key or Secret is missing in server environment variables."
+      if (!params_to_sign || typeof params_to_sign !== 'object') {
+        console.error(`[Cloudinary][${requestId}] Error: Missing or invalid params_to_sign. Received:`, params_to_sign);
+        return res.status(400).json({ 
+          error: "Missing params_to_sign in request body.",
+          details: "The request must include a params_to_sign object containing at least a timestamp."
         });
       }
 
-      console.log(`[Cloudinary] Signing request for params:`, params_to_sign);
+      const missingVars = [];
+      if (!apiSecret) missingVars.push("CLOUDINARY_API_SECRET");
+      if (!apiKey) missingVars.push("CLOUDINARY_API_KEY");
+      if (!cloudName) missingVars.push("VITE_CLOUDINARY_CLOUD_NAME/CLOUDINARY_CLOUD_NAME");
+
+      if (missingVars.length > 0) {
+        console.error(`[Cloudinary][${requestId}] Error: Missing environment variables: ${missingVars.join(", ")}`);
+        return res.status(500).json({ 
+          error: "Cloudinary configuration missing on server.",
+          details: `The following environment variables are not configured: ${missingVars.join(", ")}. Please check your production environment settings.`,
+          requestId
+        });
+      }
+
+      console.log(`[Cloudinary][${requestId}] Validating params:`, JSON.stringify(params_to_sign));
 
       // Sort params alphabetically and join with &
+      // Cloudinary signature doesn't want the api_key, cloud_name, signature or file in the string to sign
+      const disallowedParams = ['api_key', 'cloud_name', 'signature', 'file', 'resource_type'];
       const sortedParams = Object.keys(params_to_sign)
+        .filter(key => !disallowedParams.includes(key))
         .sort()
-        .map(key => `${key}=${params_to_sign[key]}`)
+        .map(key => {
+          const value = params_to_sign[key];
+          return `${key}=${value}`;
+        })
         .join("&");
+
+      console.log(`[Cloudinary][${requestId}] String to sign: ${sortedParams}[API_SECRET_HIDDEN]`);
 
       const signature = crypto
         .createHash("sha1")
         .update(sortedParams + apiSecret)
         .digest("hex");
 
+      console.log(`[Cloudinary][${requestId}] Signature generated successfully`);
+
       res.json({ 
         signature, 
         apiKey, 
         cloudName,
-        timestamp: params_to_sign.timestamp 
+        timestamp: params_to_sign.timestamp,
+        requestId
       });
     } catch (error) {
-      console.error("Cloudinary signature error:", error);
-      res.status(500).json({ error: "Failed to generate signature", details: error instanceof Error ? error.message : String(error) });
+      console.error(`[Cloudinary][${requestId}] Unexpected error:`, error);
+      res.status(500).json({ 
+        error: "Failed to generate signature", 
+        details: error instanceof Error ? error.message : String(error),
+        requestId
+      });
     }
   });
 

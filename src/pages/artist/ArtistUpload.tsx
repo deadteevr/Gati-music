@@ -333,12 +333,12 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
   const validateAudioFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['mp3', 'm4a', 'wav'].includes(ext || '')) {
-      throw new Error("Invalid audio format! Please upload an MP3, M4A, or WAV file.");
+    if (!['mp3', 'm4a', 'wav', 'flac'].includes(ext || '')) {
+      throw new Error("Invalid audio format! Please upload an MP3, M4A, WAV, or FLAC file.");
     }
-    const maxSize = 100 * 1024 * 1024; // 100MB
+    const maxSize = 500 * 1024 * 1024; // 500MB
     if (file.size > maxSize) {
-      throw new Error("Audio file size exceeds the 100MB limit. Please upload a smaller file or provide a link.");
+      throw new Error("Audio file size exceeds the 500MB limit. High quality WAV/FLAC files are supported up to 500MB.");
     }
   };
 
@@ -347,9 +347,9 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     if (!['png', 'jpg', 'jpeg'].includes(ext || '')) {
       throw new Error("Invalid cover format! Please upload a PNG, JPG, or JPEG file.");
     }
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 20 * 1024 * 1024; // 20MB
     if (file.size > maxSize) {
-      throw new Error("Cover art file size exceeds the 10MB limit. Please upload a smaller file or provide a link.");
+      throw new Error("Cover art file size exceeds the 20MB limit. Please upload a smaller high-quality JPG or PNG.");
     }
   };
 
@@ -390,29 +390,47 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     
     console.log(`[Cloudinary] Preparing signed upload for: ${file.name} (${type})`);
     
-    // 1. Get Signature from our backend
+    // 1. Get Signature from our backend with retry
     let sigData;
-    try {
-      const sigResponse = await fetch('/api/cloudinary-signature', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          params_to_sign: {
-            timestamp,
-            folder
-          }
-        })
-      });
-      
-      sigData = await sigResponse.json().catch(() => ({}));
+    let sigRetries = 2;
+    while (sigRetries >= 0) {
+      try {
+        const sigResponse = await fetch('/api/cloudinary-signature', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            params_to_sign: {
+              timestamp,
+              folder
+            }
+          })
+        });
+        
+        const text = await sigResponse.text();
+        try {
+          sigData = JSON.parse(text);
+        } catch (e) {
+          console.error("[Cloudinary] Raw signature response:", text);
+          throw new Error("Invalid response format from authorization server.");
+        }
 
-      if (!sigResponse.ok) {
-        console.error("[Cloudinary] Signature Error:", sigData);
-        throw new Error(sigData.details || sigData.error || "Failed to get upload authorization from server.");
+        if (!sigResponse.ok) {
+          console.error("[Cloudinary] Signature Error:", sigData);
+          const errorMsg = sigData.details || sigData.error || "Authorization failed";
+          const reqId = sigData.requestId ? ` (Ref: ${sigData.requestId})` : "";
+          throw new Error(`${errorMsg}${reqId}`);
+        }
+        
+        break; // Success!
+      } catch (err: any) {
+        if (sigRetries === 0) {
+          console.error("[Cloudinary] Authorization Fetch Failed after retries:", err);
+          throw new Error(`Upload Authorization Failed: ${err.message}`);
+        }
+        console.warn(`[Cloudinary] Signature fetch failed, retrying... (${sigRetries} left)`);
+        sigRetries--;
+        await new Promise(r => setTimeout(r, 1000));
       }
-    } catch (err: any) {
-      console.error("[Cloudinary] Authorization Fetch Failed:", err);
-      throw new Error(`Authorization Failed: ${err.message}`);
     }
     
     const { signature, apiKey, cloudName: serverCloudName } = sigData;
