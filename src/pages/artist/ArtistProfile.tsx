@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Edit2, Check, X, Key, Mail, Instagram, Youtube, Music, CreditCard, Banknote } from 'lucide-react';
+import { Phone, Edit2, Check, X, Key, Mail, Instagram, Youtube, Music, CreditCard, Banknote, Users } from 'lucide-react';
 import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
@@ -121,35 +121,37 @@ export default function ArtistProfile({ user }: { user: any }) {
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
           <CreditCard size={120} className="text-[#ccff00]" />
         </div>
-        <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-6 border-b border-[#333] pb-4">My Subscription</h2>
+        <h2 className="text-xl font-display uppercase tracking-widest text-[#ccff00] mb-6 border-b border-[#333] pb-4">My Status</h2>
         
-        {userDoc?.subscription ? (
-          <div className="grid md:grid-cols-3 gap-6 relative z-10">
-            <div className="space-y-1">
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Plan Type</label>
-              <div className="text-lg font-display uppercase font-black text-white">{userDoc.subscription.planType}</div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Status</label>
-              <div className={`text-lg font-display uppercase font-black ${
-                !isPlanActive(userDoc.subscription) ? 'text-red-500' : 'text-[#ccff00]'
-              }`}>
-                {!isPlanActive(userDoc.subscription) ? 'Expired' : 'Active'}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Uploads Used</label>
-              <div className="text-lg font-display uppercase font-black text-white">
-                {userDoc.subscription.planType === 'Basic' ? `${userDoc.subscription.uploadCount || 0}/1` : 'Unlimited'}
-              </div>
+        <div className="grid md:grid-cols-3 gap-6 relative z-10 mb-8 border-b border-[#222] pb-8">
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Plan Type</label>
+            <div className="text-lg font-display uppercase font-black text-white">{userDoc?.subscription?.planType || 'Free'}</div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Status</label>
+            <div className={`text-lg font-display uppercase font-black ${
+              userDoc?.subscription && !isPlanActive(userDoc.subscription) ? 'text-red-500' : 'text-[#ccff00]'
+            }`}>
+              {userDoc?.subscription && !isPlanActive(userDoc.subscription) ? 'Expired' : 'Active'}
             </div>
           </div>
-        ) : (
-          <div className="py-6 border border-dashed border-[#333] text-center">
-            <p className="text-gray-500 text-xs font-sans mb-4 uppercase tracking-[0.2em]">No active subscription found</p>
-            <Link to="/pricing" className="text-[#ccff00] text-[10px] font-display font-black uppercase tracking-widest hover:underline transition-all">Browse Plans</Link>
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Label</label>
+            <div className="text-lg font-display uppercase font-black text-[#8B5CF6]">
+              {userDoc?.labelId ? 'Associated' : 'Independent'}
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="flex justify-center sm:justify-start pt-4">
+          <Link 
+            to="/dashboard/referrals"
+            className="bg-[#222] hover:bg-[#ccff00] hover:text-black text-white px-8 py-3 text-[10px] font-display uppercase font-black tracking-[0.2em] transition-all rounded flex items-center gap-2"
+          >
+            <Users size={14} /> Refer an Artist
+          </Link>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 mb-8">

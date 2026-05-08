@@ -1,64 +1,64 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, 
   CheckCircle2, 
-  IndianRupee, 
   Zap, 
   ShieldCheck, 
   Globe2,
-  MessageCircle
+  Users,
+  Building2,
+  ChevronRight,
+  Plus,
+  ArrowRight
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { PLANS, formatPrice, Plan } from '../constants/plans';
 
 const WHATSAPP_NUMBER = "917626841258";
 
 export default function PricingPage() {
+  const [currency, setCurrency] = useState<'INR' | 'USD' | 'BOTH'>('BOTH');
+
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "Pricing Plans | Gati Music Distribution";
+    
+    // Simple currency detection based on locale (optional, can be expanded)
+    const locale = navigator.language;
+    if (locale.includes('en-IN') || locale.includes('hi')) {
+      setCurrency('BOTH');
+    } else {
+      setCurrency('BOTH'); // Defaulting to both as requested
+    }
   }, []);
 
-  const [reelsTarget, setReelsTarget] = useState("");
-  const [reelsEstimate, setReelsEstimate] = useState<number | null>(null);
   const [reelsBudget, setReelsBudget] = useState(799);
-  
-  const [ytTarget, setYtTarget] = useState("");
-  const [ytEstimate, setYtEstimate] = useState<number | null>(null);
   const [ytBudget, setYtBudget] = useState(499);
-
-  const [spotifyTarget, setSpotifyTarget] = useState("");
-  const [spotifyEstimate, setSpotifyEstimate] = useState<number | null>(null);
   const [spotifyBudget, setSpotifyBudget] = useState(2199);
+  const [reelsTarget, setReelsTarget] = useState('');
+  const [reelsEstimate, setReelsEstimate] = useState<number | null>(null);
+  const [ytTarget, setYtTarget] = useState('');
+  const [ytEstimate, setYtEstimate] = useState<number | null>(null);
 
-  const calculateReelsCost = (input: string) => {
-    setReelsTarget(input);
-    // Handle ranges like 5k-8k
-    const parts = input.toLowerCase().split(/[^\d.k]/);
-    const lastPart = parts[parts.length - 1];
-    let num = parseFloat(lastPart.replace(/k/g, '')) * (lastPart.includes('k') ? 1000 : 1);
-    
-    if (isNaN(num)) {
+  const calculateReelsCost = (val: string) => {
+    setReelsTarget(val);
+    const num = parseInt(val.replace(/[^0-9]/g, ''));
+    if (!isNaN(num)) {
+      setReelsEstimate(num * 0.12);
+    } else {
       setReelsEstimate(null);
-      return;
     }
-    // Base rate: approx ₹120 per 1000 views for reels campaign
-    setReelsEstimate(Math.round(num * 0.12)); 
   };
 
-  const calculateYTCost = (input: string) => {
-    setYtTarget(input);
-    const num = parseFloat(input.replace(/k/g, '')) * (input.toLowerCase().includes('k') ? 1000 : 1);
-    if (isNaN(num)) {
+  const calculateYTCost = (val: string) => {
+    setYtTarget(val);
+    const num = parseInt(val.replace(/[^0-9]/g, ''));
+    if (!isNaN(num)) {
+      setYtEstimate(num * 0.19);
+    } else {
       setYtEstimate(null);
-      return;
     }
-    // Plans: 1k -> 199, 3k -> 499 (~166), 10k -> 1499 (~149)
-    let rate = 0.199;
-    if (num >= 3000) rate = 0.166;
-    if (num >= 10000) rate = 0.149;
-    setYtEstimate(Math.round(num * rate));
   };
 
   const getReelsViewsFromBudget = (budget: number) => {
@@ -77,56 +77,12 @@ export default function PricingPage() {
   };
 
   const getSpotifyStreamsFromBudget = (budget: number) => {
-    // Approx ₹0.5 per stream for micro-playlists
     const streams = Math.round(budget / 0.5);
     return `${(streams/1000).toFixed(1)}k`;
   };
 
-  const plans = [
-    {
-      name: "Basic",
-      price: "75",
-      period: "per song",
-      desc: "Perfect for single releases",
-      features: [
-        "150+ Streaming Platforms",
-        "80% Royalties to Artist",
-        "YouTube Content ID Included",
-        "Fast 2-3 Day Delivery",
-        "Direct WhatsApp Support",
-        "Metadata Error Check"
-      ]
-    },
-    {
-      name: "Monthly",
-      price: "199",
-      period: "per month",
-      desc: "Unlimited uploads for active artists",
-      popular: true,
-      features: [
-        "Unlimited Songs & Albums",
-        "80% Royalties to Artist",
-        "YouTube Official Artist Channel",
-        "Spotify Verified Profile Help",
-        "Priority Support (2hr Reply)",
-        "Instagram & Facebook Lyrics"
-      ]
-    },
-    {
-      name: "Yearly",
-      price: "999",
-      period: "per year",
-      desc: "Best value for professional artists",
-      features: [
-        "Everything in Monthly Plan",
-        "Effective ₹83/month Billing",
-        "Custom Release Strategies",
-        "Promo Opportunity Access",
-        "Early Beta Feature Access",
-        "Priority Metadata Approval"
-      ]
-    }
-  ];
+  const artistPlans = PLANS.filter(p => p.type === 'artist');
+  const labelPlans = PLANS.filter(p => p.type === 'label');
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f5f5f5] font-sans selection:bg-[#B6FF00] selection:text-black overflow-x-hidden">
@@ -206,58 +162,205 @@ export default function PricingPage() {
       </header>
 
       <section className="pt-40 pb-20 px-6 max-w-6xl mx-auto">
-        <div className="text-center mb-20">
+        <div className="text-center mb-8">
           <h1 className="text-5xl md:text-7xl font-display uppercase tracking-tighter mb-6">
-            Affordable <span className="text-[#B6FF00]">Pricing</span>
+            Global <span className="text-[#B6FF00]">Pricing</span>
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
-            Transparent plans designed for independent artists in India. Release your music on Spotify and Apple Music without breaking the bank.
+          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10">
+            Transparent plans for independent artists and labels worldwide.
           </p>
+
+          <div className="inline-flex bg-white/5 p-1 rounded-full border border-white/10 mb-12">
+            <button 
+              onClick={() => setCurrency('BOTH')}
+              className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${currency === 'BOTH' ? 'bg-[#B6FF00] text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              Dual Pricing (INR/USD)
+            </button>
+            <button 
+              onClick={() => setCurrency('INR')}
+              className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${currency === 'INR' ? 'bg-[#B6FF00] text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              INR Only
+            </button>
+            <button 
+              onClick={() => setCurrency('USD')}
+              className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all ${currency === 'USD' ? 'bg-[#B6FF00] text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              USD Only
+            </button>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {plans.map((plan, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className={`p-8 rounded-3xl border ${plan.popular ? 'border-[#B6FF00] bg-[#B6FF00]/5' : 'border-[#222] bg-[#111]/30'} flex flex-col`}
-            >
-              <div className="mb-8">
-                <h2 className="text-2xl font-display uppercase tracking-widest mb-2 font-black">{plan.name}</h2>
-                <p className="text-gray-500 text-sm font-sans mb-6">{plan.desc}</p>
-                <div className="flex items-end gap-1">
-                  <span className="text-4xl font-display font-black">₹{plan.price}</span>
-                  <span className="text-gray-500 text-xs uppercase tracking-widest pb-1">{plan.period}</span>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-8 flex-grow">
-                {plan.features.map((feature, j) => (
-                  <div key={j} className="flex gap-3 text-sm text-gray-400">
-                    <CheckCircle2 size={16} className="text-[#B6FF00] flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
+        {/* Artist Plans */}
+        <div className="mb-24">
+          <div className="flex items-center gap-3 mb-10 justify-center">
+            <Users className="text-[#B6FF00]" size={24} />
+            <h2 className="text-2xl font-display uppercase tracking-widest font-black">Artist Plans</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {artistPlans.map((plan, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className={`p-8 rounded-3xl border ${plan.popular ? 'border-[#B6FF00] bg-[#B6FF00]/5' : 'border-[#222] bg-[#111]/30'} flex flex-col relative group`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#B6FF00] text-black text-[9px] font-display uppercase font-black px-4 py-1 rounded-full tracking-widest shadow-[0_0_20px_rgba(182,255,0,0.3)]">
+                    Most Popular
                   </div>
-                ))}
-              </div>
+                )}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-display uppercase tracking-widest mb-2 font-black group-hover:text-[#B6FF00] transition-colors">{plan.name}</h2>
+                  <p className="text-gray-500 text-sm font-sans mb-6">{plan.desc}</p>
+                  <div className="flex items-end gap-1">
+                    <span className="text-4xl font-display font-black">{formatPrice(plan, currency)}</span>
+                    <span className="text-gray-500 text-[10px] uppercase tracking-widest pb-1 ml-2">/ {plan.period}</span>
+                  </div>
+                </div>
 
-              <div className="mb-6">
-                <a 
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I want to purchase the Gati Music ${plan.name} plan.`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`block w-full py-4 rounded-xl text-center font-display font-black uppercase tracking-widest transition-all ${plan.popular ? 'bg-[#B6FF00] text-black hover:bg-white' : 'bg-white text-black hover:bg-[#B6FF00]'}`}
-                >
-                  Choose {plan.name}
-                </a>
+                <div className="space-y-4 mb-10 flex-grow">
+                  {plan.features.map((feature, j) => (
+                    <div key={j} className="flex gap-3 text-sm text-gray-400">
+                      <CheckCircle2 size={16} className="text-[#B6FF00] flex-shrink-0 mt-0.5" />
+                      <span className="leading-tight">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-auto">
+                  <a 
+                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I want to purchase the Gati Music ${plan.name} plan.`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block w-full py-4 rounded-xl text-center font-display font-black uppercase tracking-widest transition-all ${plan.popular ? 'bg-[#B6FF00] text-black hover:bg-white' : 'bg-white text-black hover:bg-[#B6FF00]'}`}
+                  >
+                    Get Started
+                  </a>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Label Plans */}
+        <div className="pt-20 border-t border-white/5">
+          <div className="flex flex-col items-center mb-12 text-center">
+            <Building2 className="text-[#8B5CF6] mb-4" size={32} />
+            <h2 className="text-4xl font-display uppercase tracking-tighter mb-4">Music <span className="text-[#8B5CF6]">Label</span> Plans</h2>
+            <p className="text-gray-500 max-w-xl text-sm">Designed for managers, labels, and teams who need multi-artist management and centralized control.</p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {labelPlans.map((plan, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className={`p-10 rounded-3xl border ${plan.popular ? 'border-[#8B5CF6] bg-[#8B5CF6]/5' : 'border-[#222] bg-[#111]/30'} flex flex-col relative group`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#8B5CF6] text-white text-[9px] font-display uppercase font-black px-4 py-1 rounded-full tracking-widest shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+                    Professional Choice
+                  </div>
+                )}
+                <div className="mb-10">
+                  <h2 className="text-3xl font-display uppercase tracking-widest mb-3 font-black group-hover:text-[#8B5CF6] transition-colors">{plan.name}</h2>
+                  <p className="text-gray-400 text-sm font-sans mb-8">{plan.desc}</p>
+                  <div className="flex items-end gap-1">
+                    <span className="text-5xl font-display font-black">{formatPrice(plan, currency)}</span>
+                    <span className="text-gray-500 text-[10px] uppercase tracking-widest pb-2 ml-3">/ {plan.period}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 mb-12 flex-grow">
+                  {plan.features.map((feature, j) => (
+                    <div key={j} className="flex gap-3 text-sm text-gray-300">
+                      <Plus size={16} className="text-[#8B5CF6] flex-shrink-0 mt-0.5" />
+                      <span className="leading-tight">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-auto">
+                  <a 
+                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I'm interested in the Gati Music ${plan.name} for my label.`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block w-full py-5 rounded-xl text-center font-display font-black uppercase tracking-widest transition-all ${plan.popular ? 'bg-[#8B5CF6] text-white hover:bg-white hover:text-black' : 'bg-white text-black hover:bg-[#8B5CF6] hover:text-white'}`}
+                  >
+                    Setup My Label
+                  </a>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-20 bg-gradient-to-br from-[#111] to-black border border-white/5 p-12 rounded-[32px] flex flex-col md:flex-row items-center gap-10">
+            <div className="flex-1">
+              <h3 className="text-2xl font-display font-black uppercase mb-4 tracking-tighter">Managing massive rosters?</h3>
+              <p className="text-gray-400 text-sm font-sans leading-relaxed">
+                If you manage more than 20 artists or have high-volume catalogs (1000+ songs), we offer custom enterprise solutions with dedicated infrastructure and deeper royalty splits.
+              </p>
+            </div>
+            <Link 
+              to="/contact"
+              className="px-10 py-5 bg-white text-black font-display font-black uppercase tracking-widest rounded-xl hover:bg-[#B6FF00] transition-colors shrink-0"
+            >
+              Request Custom Quote
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Massive Rosters CTA */}
+      <section className="py-20 px-6 max-w-6xl mx-auto border-t border-white/5">
+        <div className="bg-gradient-to-br from-[#111] via-[#050505] to-[#111] border border-[#333] rounded-[3rem] p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Building2 size={240} className="text-[#8B5CF6]" />
+          </div>
+          
+          <div className="max-w-xl relative z-10">
+            <div className="inline-block px-4 py-1.5 bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 text-[#8B5CF6] text-[10px] font-display font-black uppercase tracking-widest rounded-full mb-6">
+              Enterprise Solutions
+            </div>
+            <h2 className="text-4xl md:text-5xl font-display uppercase tracking-tighter mb-6 leading-none">
+              Managing massive <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8B5CF6] to-[#EC4899]">rosters?</span>
+            </h2>
+            <p className="text-gray-400 text-lg mb-8">
+              We offer customized volume pricing for labels with 20+ artists or high-frequency release cycles. Get a dedicated label manager and white-glove support.
+            </p>
+            <div className="flex flex-wrap gap-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-[#8B5CF6]" />
+                <span className="text-xs uppercase tracking-widest font-bold text-gray-500">Custom API Access</span>
               </div>
-              
-              <div className="text-center">
-                <Link to="/contact" className="text-[10px] uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Questions? Contact Support</Link>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-[#8B5CF6]" />
+                <span className="text-xs uppercase tracking-widest font-bold text-gray-500">Post-Payment Terms</span>
               </div>
-            </motion.div>
-          ))}
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-[#8B5CF6]" />
+                <span className="text-xs uppercase tracking-widest font-bold text-gray-500">Priority Delivery</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full md:w-auto relative z-10 shrink-0">
+            <a 
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hi, I have a music label and I want a custom quote for Gati Distribution.`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-3 bg-white text-black px-12 py-6 rounded-2xl font-display font-black uppercase tracking-widest hover:bg-[#8B5CF6] hover:text-white transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:shadow-[0_0_60px_rgba(139,92,246,0.3)] w-full md:w-auto"
+            >
+              Get Custom Quote <ArrowRight />
+            </a>
+          </div>
         </div>
       </section>
 

@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, onSnapshot, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { User, Music, ArrowLeft, Save, IndianRupee, Link as LinkIcon, Download, Trash2, CheckCircle2 } from 'lucide-react';
-import { updateReferralProgress } from '../../lib/referralUtils';
 
 export default function AdminArtistProfile() {
   const { uid } = useParams();
@@ -121,11 +120,6 @@ export default function AdminArtistProfile() {
           paymentStatus: artist.subscription?.paymentStatus || 'Manual'
         }
       });
-
-      // NEW: Referral Progress (Trigger if plan becomes Monthly or Yearly)
-      if (['Monthly', 'Yearly'].includes(subData.planType)) {
-        await updateReferralProgress(uid!, 'payment');
-      }
       
       // Update local state to reflect possible auto-expiry
       if (finalExpiry !== subData.expiryDate) {

@@ -122,11 +122,9 @@ export default function AdminRequests() {
                       </div>
                     </td>
                     <td className="p-4">
-                      {r.referralCode ? (
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-[#ccff00]/10 text-[#ccff00] font-mono text-[10px] font-black border border-[#ccff00]/20 rounded tracking-tighter">
-                            {r.referralCode}
-                          </span>
+                      {r.heardFrom ? (
+                        <div className="text-[10px] text-gray-400 font-sans italic max-w-[150px] truncate" title={r.heardFrom}>
+                          "{r.heardFrom}"
                         </div>
                       ) : (
                         <span className="text-gray-700 text-[10px] font-display uppercase tracking-widest">None</span>

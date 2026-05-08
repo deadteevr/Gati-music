@@ -2,7 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { collection, query, where, getDocs, limit, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Music, TrendingUp, TrendingDown, Radio, Activity, CalendarDays, Bell, MessageSquare, Send, CheckCircle2, Sparkles, Lightbulb, Globe, Plus, Megaphone, IndianRupee, ShieldAlert, Star } from 'lucide-react';
+import { 
+  ArrowRight, 
+  Music, 
+  TrendingUp, 
+  TrendingDown, 
+  Radio, 
+  Activity, 
+  CalendarDays, 
+  Bell, 
+  MessageSquare, 
+  Send, 
+  CheckCircle2, 
+  Sparkles, 
+  Lightbulb, 
+  Globe, 
+  Plus, 
+  Megaphone, 
+  IndianRupee, 
+  ShieldAlert, 
+  Star,
+  Building2,
+  Zap
+} from 'lucide-react';
 import { geminiService, GrowthInsights, NextActions } from '../../services/geminiService';
 import { AIThinking } from '../../components/AIComponents';
 import { motion, AnimatePresence } from 'motion/react';
@@ -489,6 +511,34 @@ export default function ArtistHome({ user, userData }: { user: any, userData: an
 
       {/* AI Insights row */}
       <div className="grid lg:grid-cols-2 gap-6 mb-12">
+        {(stats.totalSongs >= 3 || (userData.subscription?.planType === 'Basic' && stats.totalSongs >= 1)) && !userData.labelId && (
+           <motion.div 
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="bg-gradient-to-br from-[#111] to-[#0A0A0A] border border-[#8B5CF6]/30 p-8 rounded-[32px] relative overflow-hidden group col-span-full border-dashed"
+           >
+             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+               <Building2 size={120} className="text-[#8B5CF6]" />
+             </div>
+             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+               <div className="max-w-xl text-center md:text-left">
+                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 rounded-full mb-4">
+                   <Zap size={12} className="text-[#8B5CF6]" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-[#8B5CF6]">Pro Upgrade</span>
+                 </div>
+                 <h3 className="text-3xl font-display uppercase font-black text-white leading-tight mb-3">Expanding your <span className="text-[#8B5CF6]">Roster?</span></h3>
+                 <p className="text-gray-500 text-sm font-sans">You're releasing music and growing fast. Switch to a <span className="text-white font-bold">Label Plan</span> to manage multiple artists, get unlimited uploads, and unlock a dedicated Label Dashboard.</p>
+               </div>
+               <Link 
+                 to="/pricing" 
+                 className="px-10 py-5 bg-[#8B5CF6] text-white font-display uppercase font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all shadow-xl shadow-purple-500/10 rounded-2xl whitespace-nowrap"
+               >
+                 View Label Plans
+               </Link>
+             </div>
+           </motion.div>
+        )}
+
         <div className="bg-[#111] border border-[#ccff00]/20 p-6 lg:p-8 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={120} className="text-[#ccff00]" /></div>
           <div className="relative z-10">

@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert, Users } from 'lucide-react';
+import { Home, Upload, Clock, Bell, IndianRupee, LogOut, Menu, X, User, Megaphone, Zap, ShieldAlert, Users, LayoutDashboard } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useState, lazy, Suspense, useEffect } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
@@ -48,22 +48,6 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
     });
     return unsub;
   }, [user]);
-
-  useEffect(() => {
-    if (!user || userData?.role === 'admin' || !userData || userData.referralCode) return;
-    
-    const assignCode = async () => {
-      try {
-        const { generateReferralCode, saveReferralCode } = await import('../lib/referralUtils');
-        const code = await generateReferralCode(userData.displayName || userData.name || 'GATI');
-        await saveReferralCode(user.uid, code);
-      } catch (e) {
-        console.error("Auto-assign referral code failed:", e);
-      }
-    };
-    
-    assignCode();
-  }, [user, userData]);
 
   const handleLogout = async () => {
     await logout();
@@ -117,6 +101,17 @@ export default function Dashboard({ user, userData, globalSettings }: { user: an
         </div>
 
         <div className="flex-1 py-6 px-4 overflow-y-auto flex flex-col gap-2">
+          {/* Request Dashboard Quick Link */}
+          <a 
+            href="https://wa.me/917626841258?text=Hi, I want to request dashboard access."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 px-4 py-3 mb-2 bg-[#ccff00]/10 border border-[#ccff00]/20 rounded-lg font-display uppercase tracking-widest text-[11px] font-black text-[#ccff00] hover:bg-[#ccff00] hover:text-black transition-all group"
+          >
+            <LayoutDashboard size={18} />
+            Request Dashboard Access
+          </a>
+
           {/* Plan Info Card */}
           <div className="mb-4 bg-[#1a1a1a] border border-[#333] p-4 rounded-lg">
             <div className="flex items-center justify-between mb-2">

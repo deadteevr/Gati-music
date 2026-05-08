@@ -2,11 +2,12 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "A user profile, representing either an artist or admin.",
+      "description": "A user profile, representing common roles.",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "description": "The auth ID" },
-        "role": { "type": "string", "enum": ["artist", "admin"] },
+        "role": { "type": "string", "enum": ["artist", "admin", "label_owner", "label_manager"] },
+        "labelId": { "type": "string", "description": "ID of the label if user belongs to one" },
         "name": { "type": "string" },
         "email": { "type": "string" },
         "referralCode": { "type": "string", "description": "Unique code for referrals" },
@@ -14,7 +15,7 @@
         "subscription": {
           "type": "object",
           "properties": {
-            "planType": { "type": "string", "enum": ["Basic", "Monthly", "Yearly", "Free"] },
+            "planType": { "type": "string", "enum": ["Basic", "Monthly", "Yearly", "Label Monthly", "Label Yearly", "Free"] },
             "startDate": { "type": "string" },
             "expiryDate": { "type": "string" },
             "status": { "type": "string", "enum": ["Active", "Expired"] },
@@ -25,12 +26,36 @@
       },
       "required": ["uid", "role", "name", "email", "createdAt"]
     },
+    "Label": {
+      "title": "Label",
+      "description": "A music label or organization profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "branding": {
+          "type": "object",
+          "properties": {
+            "primaryColor": { "type": "string" },
+            "website": { "type": "string" }
+          }
+        },
+        "artistUids": { "type": "array", "items": { "type": "string" } },
+        "managerUids": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerUid", "createdAt"]
+    },
     "Submission": {
       "title": "Submission",
       "description": "A music distribution submission request.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
+        "labelId": { "type": "string", "description": "ID of the label if submitted via label" },
+        "managedArtistUid": { "type": "string", "description": "UID of the artist this release belongs to" },
         "title": { "type": "string" },
         "mainArtist": { "type": "string" },
         "featuringArtists": { "type": "array", "items": { "type": "string" } },
@@ -123,18 +148,20 @@
     },
     "Referral": {
       "title": "Referral",
-      "description": "A link between a referrer and a new artist.",
+      "description": "A manual referral submission for review.",
       "type": "object",
       "properties": {
         "referrerUid": { "type": "string" },
-        "refereeUid": { "type": "string" },
-        "refereeEmail": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "successful"] },
-        "hasUploaded": { "type": "boolean" },
-        "hasPaid": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "referrerName": { "type": "string" },
+        "artistName": { "type": "string" },
+        "instagramUsername": { "type": "string" },
+        "email": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Reward Unlocked"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["referrerUid", "refereeEmail", "status", "createdAt"]
+      "required": ["referrerUid", "artistName", "instagramUsername", "email", "status", "createdAt"]
     },
     "Reward": {
       "title": "Reward",
@@ -162,21 +189,26 @@
       "schema": { "$ref": "#/entities/Referral" },
       "description": "Store referral links"
     },
-    "/rewards/{rewardId}": {
-      "schema": { "$ref": "#/entities/Reward" },
-      "description": "Store earned rewards"
+    "/labels/{labelId}": {
+      "schema": { "$ref": "#/entities/Label" },
+      "description": "Store label information"
     },
-    "/referralCodes/{code}": {
+    "/labels/{labelId}/activity/{activityId}": {
       "schema": {
-        "title": "ReferralCode",
+        "title": "LabelActivity",
         "type": "object",
         "properties": {
-          "uid": { "type": "string" },
-          "code": { "type": "string" },
+          "type": { "type": "string" },
+          "description": { "type": "string" },
+          "actorUid": { "type": "string" },
           "createdAt": { "type": "string", "format": "date-time" }
         }
       },
-      "description": "Public registry for referral code lookups"
+      "description": "Activity logs for labels"
+    },
+    "/rewards/{rewardId}": {
+      "schema": { "$ref": "#/entities/Reward" },
+      "description": "Store earned rewards"
     },
     "/submissions/{submissionId}": {
       "schema": { "$ref": "#/entities/Submission" },

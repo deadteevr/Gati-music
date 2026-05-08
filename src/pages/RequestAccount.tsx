@@ -12,7 +12,7 @@ export default function RequestAccount() {
     phone: '',
     instagram: '',
     spotifyLink: '',
-    referralCode: ''
+    heardFrom: ''
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -24,18 +24,8 @@ export default function RequestAccount() {
     setError(null);
 
     try {
-      // Validate referral code if provided
-      if (formData.referralCode) {
-        const q = query(collection(db, 'referralCodes'), where('code', '==', formData.referralCode.toUpperCase()));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          throw new Error("Invalid referral code. Please check and try again.");
-        }
-      }
-
       await addDoc(collection(db, 'requests'), {
         ...formData,
-        referralCode: formData.referralCode.toUpperCase(),
         status: 'pending',
         createdAt: serverTimestamp()
       });
@@ -176,14 +166,14 @@ export default function RequestAccount() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-display uppercase tracking-widest text-[#ccff00] font-black">Referral Code (Optional)</label>
+                <label className="text-[10px] font-display uppercase tracking-widest text-[#ccff00] font-black">How did you hear about us? (Optional)</label>
                 <div className="relative group">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-[#ccff00] transition-colors" size={16} />
                   <input 
-                    value={formData.referralCode}
-                    onChange={e => setFormData({...formData, referralCode: e.target.value.toUpperCase()})}
-                    placeholder="E.G. RAHUL123"
-                    className="w-full bg-black border border-[#333] text-white pl-10 pr-4 py-3 font-mono text-sm tracking-widest focus:border-[#ccff00] outline-none transition-all placeholder:text-gray-700"
+                    value={formData.heardFrom}
+                    onChange={e => setFormData({...formData, heardFrom: e.target.value})}
+                    placeholder="e.g. Referral by Rahul"
+                    className="w-full bg-black border border-[#333] text-white pl-10 pr-4 py-3 text-sm focus:border-[#ccff00] outline-none transition-all placeholder:text-gray-700"
                   />
                 </div>
               </div>

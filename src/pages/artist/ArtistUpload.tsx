@@ -14,8 +14,6 @@ import { sendEmailVerification } from 'firebase/auth';
 
 import { useGlobalError } from '../../components/ErrorProvider';
 
-import { updateReferralProgress, consumeReward } from '../../lib/referralUtils';
-
 export default function ArtistUpload({ user, userData }: { user: any, userData: any }) {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -456,7 +454,8 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
         mainArtist: formData.mainArtist,
         featuringArtists: formData.featuringArtists.split(',').map(s => s.trim()).filter(Boolean),
         additionalContributors: additionalArtists,
-        labelName: formData.labelName,
+        labelName: formData.labelName || userData.managedByLabelName || "",
+        labelId: userData.labelId || null,
         pLine: formData.pLine,
         cLine: formData.cLine,
         lyricist: formData.lyricist,
@@ -499,30 +498,15 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
       // Update User Upload Count & Expiry Logic (Only for new uploads)
       if (!id) {
         try {
+          const isLabelPlan = ['Label Monthly', 'Label Yearly'].includes(userData.subscription?.planType);
           const newUploadCount = (userData.subscription?.uploadCount || 0) + 1;
           const isBasic = userData.subscription?.planType === 'Basic';
           const shouldExpire = isBasic && newUploadCount >= 1;
 
           await updateDoc(doc(db, 'users', user.uid), {
             'subscription.uploadCount': newUploadCount,
-            'subscription.status': shouldExpire ? 'Expired' : userData.subscription?.status
+            'subscription.status': (isLabelPlan || !shouldExpire) ? userData.subscription?.status : 'Expired'
           });
-
-          // NEW: Referral Progress
-          if (newUploadCount === 1) {
-            await updateReferralProgress(user.uid, 'upload');
-          }
-
-          // NEW: If we used a reward, consume it
-          if (activeFreeSong) {
-            await consumeReward(activeFreeSong.id);
-            // If they were expired, un-expire them temporarily for this release
-            if (userData.subscription?.status === 'Expired') {
-               await updateDoc(doc(db, 'users', user.uid), {
-                 'subscription.status': 'Active' // Manual fix to allow the submission to be "Reviewing" correctly
-               });
-            }
-          }
         } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, 'users', false);
           // Fixed issues with business logic failure

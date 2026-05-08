@@ -1,6 +1,6 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useState, lazy, Suspense, useEffect } from 'react';
-import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X, CheckSquare, Zap, Link as LinkIcon, UserPlus } from 'lucide-react';
+import { Home, Users, Music, Database, Bell, IndianRupee, CreditCard, Megaphone, Settings, LogOut, Menu, X, CheckSquare, Zap, Link as LinkIcon, UserPlus, Building2 } from 'lucide-react';
 import { logout } from '../lib/auth';
 import PremiumLoader from '../components/PremiumLoader';
 import BackButton from '../components/BackButton';
@@ -22,6 +22,7 @@ const AdminMarketing = lazy(() => import('./admin/AdminMarketing'));
 const AdminSmartLinks = lazy(() => import('./admin/AdminSmartLinks'));
 const AdminRequests = lazy(() => import('./admin/AdminRequests'));
 const AdminReferrals = lazy(() => import('./admin/AdminReferrals'));
+const AdminLabels = lazy(() => import('./admin/AdminLabels'));
 
 export default function AdminPanel({ user, userData }: { user: any, userData: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -45,6 +46,7 @@ export default function AdminPanel({ user, userData }: { user: any, userData: an
   const navItems = [
     { name: "Dashboard", path: "/admin", icon: <Home size={18} /> },
     { name: "Artists", path: "/admin/artists", icon: <Users size={18} /> },
+    { name: "Labels", path: "/admin/labels", icon: <Building2 size={18} /> },
     { name: "Requests", path: "/admin/requests", icon: <UserPlus size={18} /> },
     { name: "Referrals", path: "/admin/referrals", icon: <Users size={18} /> },
     { name: "Smart Links", path: "/admin/smart-links", icon: <LinkIcon size={18} /> },
@@ -134,6 +136,7 @@ export default function AdminPanel({ user, userData }: { user: any, userData: an
               <Route path="/" element={<AdminHome />} />
               <Route path="/artists" element={<AdminArtists />} />
               <Route path="/artists/:uid" element={<AdminArtistProfile />} />
+              <Route path="/labels" element={<AdminLabels />} />
               <Route path="/requests" element={<AdminRequests />} />
               <Route path="/referrals" element={<AdminReferrals />} />
               <Route path="/smart-links" element={<AdminSmartLinks />} />

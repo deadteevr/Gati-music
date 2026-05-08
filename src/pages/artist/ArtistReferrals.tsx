@@ -1,34 +1,61 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Users, Copy, Check, Share2, Award, Zap, Clock, Star, Gift, ArrowUpRight, Music, Megaphone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Users, Copy, Check, Share2, Award, Zap, Clock, Star, Gift, ArrowUpRight, Music, Megaphone, Send, Instagram, Mail, Phone, Loader2 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function ArtistReferrals({ user, userData }: { user: any, userData: any }) {
   const [referrals, setReferrals] = useState<any[]>([]);
   const [rewards, setRewards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
-  const referralCode = userData?.referralCode;
+  // Form State
+  const [formData, setFormData] = useState({
+    artistName: '',
+    instagramUsername: '',
+    email: '',
+    whatsapp: ''
+  });
 
-  const handleGenerateCode = async () => {
-    if (generating) return;
-    setGenerating(true);
+  const handleSubmitReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
     try {
-      const { generateReferralCode, saveReferralCode } = await import('../../lib/referralUtils');
-      const code = await generateReferralCode(userData?.displayName || userData?.name || 'GATI');
-      await saveReferralCode(user.uid, code);
-    } catch (e) {
-      console.error(e);
+      await addDoc(collection(db, 'referrals'), {
+        referrerUid: user.uid,
+        referrerName: userData?.displayName || userData?.name || 'Gati Artist',
+        artistName: formData.artistName,
+        instagramUsername: formData.instagramUsername,
+        email: formData.email,
+        whatsapp: formData.whatsapp,
+        status: 'Pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      setSuccess("Referral submitted successfully! Our team will review it.");
+      setFormData({ artistName: '', instagramUsername: '', email: '', whatsapp: '' });
+      setShowForm(false);
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err: any) {
+      console.error("Error submitting referral:", err);
+      setError("Failed to submit referral. Please check your connection.");
     } finally {
-      setGenerating(false);
+      setSubmitting(false);
     }
   };
 
-  const successfulCount = referrals.filter(r => r.status === 'successful').length;
-  const pendingCount = referrals.filter(r => r.status === 'pending').length;
+  const successfulCount = referrals.filter(r => r.status === 'Reward Unlocked').length;
+  const pendingCount = referrals.filter(r => r.status === 'Pending' || r.status === 'Approved').length;
 
   useEffect(() => {
     if (!user) return;
@@ -50,14 +77,7 @@ export default function ArtistReferrals({ user, userData }: { user: any, userDat
     };
   }, [user.uid]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(referralCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const getMilestoneProgress = () => {
-    // 5 referrals grant 1 month plan
     if (successfulCount < 5) return { next: 5, current: successfulCount, label: 'Free Monthly Plan', icon: <Zap size={14} /> };
     if (successfulCount < 10) return { next: 10, current: successfulCount, label: 'Custom Marketing Bonus', icon: <Megaphone size={14} /> };
     return { next: successfulCount + 5, current: successfulCount, label: 'Elite Producer Perk', icon: <Zap size={14} /> };
@@ -65,7 +85,20 @@ export default function ArtistReferrals({ user, userData }: { user: any, userDat
 
   const progress = getMilestoneProgress();
   const progressPercent = Math.min(100, (progress.current / progress.next) * 100);
-  const percent = Math.min(100, (progress.current / progress.next) * 100);
+
+  const formatDate = (date: any) => {
+    if (!date) return 'Recently';
+    if (typeof date === 'object' && date.toDate) return date.toDate().toLocaleDateString();
+    return new Date(date).toLocaleDateString();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#ccff00] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 py-4">
@@ -77,54 +110,124 @@ export default function ArtistReferrals({ user, userData }: { user: any, userDat
         
         <div className="bg-[#ccff00]/10 border border-[#ccff00]/20 px-6 py-4 rounded-xl flex items-center gap-6">
           <div className="text-center border-r border-[#ccff00]/10 pr-6">
-            <p className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Successful</p>
+            <p className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Unlocked</p>
             <p className="text-2xl font-display font-black text-[#ccff00] leading-none">{successfulCount}</p>
           </div>
           <div className="text-center">
-            <p className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Pending</p>
+            <p className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">In Review</p>
             <p className="text-2xl font-display font-black text-white leading-none">{pendingCount}</p>
           </div>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Referral Code Card */}
+        {/* Referral Action Card */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-[#111] border border-[#333] p-8 rounded-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Users size={80} />
             </div>
             
-            <h2 className="text-xl font-display font-black text-white uppercase mb-6 tracking-tighter">Your Invite Code</h2>
+            <h2 className="text-xl font-display font-black text-white uppercase mb-6 tracking-tighter">Refer an Artist</h2>
             
-            <div className="bg-black border border-[#222] p-6 text-center rounded-xl mb-6 min-h-[140px] flex flex-col justify-center">
-              {referralCode ? (
-                <>
-                  <p className="text-4xl font-mono font-black text-[#ccff00] tracking-[0.2em] mb-4 select-all">{referralCode}</p>
+            {!showForm ? (
+              <div className="space-y-6">
+                <p className="text-xs text-gray-400 font-sans leading-relaxed">
+                  Know an artist who should be on Gati? Submit their details and we'll handle the rest. You get rewarded when they join and purchase a plan.
+                </p>
+                <button 
+                  onClick={() => setShowForm(true)}
+                  className="w-full py-4 bg-[#ccff00] text-black hover:bg-white transition-all text-[10px] font-display uppercase font-black tracking-widest flex items-center justify-center gap-2"
+                >
+                  <Send size={14} /> Submit New Referral
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReferral} className="space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-display uppercase tracking-widest text-gray-500">Artist Name</label>
+                  <input 
+                    required
+                    type="text"
+                    value={formData.artistName}
+                    onChange={e => setFormData({...formData, artistName: e.target.value})}
+                    placeholder="Artist Legal/Stage Name"
+                    className="w-full bg-black border border-[#222] p-3 text-white text-xs font-sans focus:border-[#ccff00] outline-none transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-display uppercase tracking-widest text-gray-500">Instagram Username</label>
+                  <div className="relative">
+                    <Instagram size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      required
+                      type="text"
+                      value={formData.instagramUsername}
+                      onChange={e => setFormData({...formData, instagramUsername: e.target.value})}
+                      placeholder="instagram_handle"
+                      className="w-full bg-black border border-[#222] p-3 pl-10 text-white text-xs font-sans focus:border-[#ccff00] outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-display uppercase tracking-widest text-gray-500">Email Address</label>
+                  <div className="relative">
+                    <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      required
+                      type="email"
+                      value={formData.email}
+                      onChange={e => setFormData({...formData, email: e.target.value})}
+                      placeholder="artist@example.com"
+                      className="w-full bg-black border border-[#222] p-3 pl-10 text-white text-xs font-sans focus:border-[#ccff00] outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-display uppercase tracking-widest text-gray-500">WhatsApp Number</label>
+                  <div className="relative">
+                    <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      required
+                      type="tel"
+                      value={formData.whatsapp}
+                      onChange={e => setFormData({...formData, whatsapp: e.target.value})}
+                      placeholder="+234..."
+                      className="w-full bg-black border border-[#222] p-3 pl-10 text-white text-xs font-sans focus:border-[#ccff00] outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex gap-3">
                   <button 
-                    onClick={copyToClipboard}
-                    className="w-full py-3 bg-[#222] hover:bg-white hover:text-black text-white transition-all text-[10px] font-display uppercase font-black tracking-widest flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="flex-1 py-3 bg-[#222] text-white hover:bg-[#333] transition-all text-[10px] font-display uppercase font-black tracking-widest"
                   >
-                    {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Code</>}
+                    Cancel
                   </button>
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-[10px] text-gray-500 font-display uppercase tracking-widest">No code assigned yet</p>
                   <button 
-                    onClick={handleGenerateCode}
-                    disabled={generating}
-                    className="w-full py-4 bg-[#ccff00] text-black hover:bg-white transition-all text-[10px] font-display uppercase font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-[2] py-3 bg-[#ccff00] text-black hover:bg-white transition-all text-[10px] font-display uppercase font-black tracking-widest flex items-center justify-center gap-2"
                   >
-                    {generating ? 'Generating...' : 'Generate My Code'}
+                    {submitting ? <Loader2 size={14} className="animate-spin" /> : 'Submit Referral'}
                   </button>
                 </div>
-              )}
-            </div>
+              </form>
+            )}
 
-            <p className="text-[10px] text-gray-500 font-sans leading-relaxed text-center uppercase tracking-widest">
-              Share this code manually with your artist friends. They should enter it when requesting an account.
-            </p>
+            {success && (
+              <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] font-display uppercase tracking-widest text-center">
+                {success}
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-display uppercase tracking-widest text-center">
+                {error}
+              </div>
+            )}
           </div>
 
           <div className="bg-gradient-to-br from-[#9d4edd]/20 to-black border border-[#9d4edd]/30 p-8 rounded-2xl">
@@ -178,14 +281,14 @@ export default function ArtistReferrals({ user, userData }: { user: any, userDat
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-black border border-[#222] p-4 text-center">
                 <p className="text-2xl font-display font-black text-white mb-1">{referrals.length}</p>
-                <p className="text-[8px] font-sans uppercase text-gray-500 tracking-widest">Total Invited</p>
+                <p className="text-[8px] font-sans uppercase text-gray-500 tracking-widest">Total Referred</p>
               </div>
               <div className="bg-black border border-[#222] p-4 text-center">
                 <p className="text-2xl font-display font-black text-[#ccff00] mb-1">{successfulCount}</p>
-                <p className="text-[8px] font-sans uppercase text-gray-500 tracking-widest">Successful</p>
+                <p className="text-[8px] font-sans uppercase text-gray-500 tracking-widest">Reward Unlocked</p>
               </div>
               <div className="bg-black border border-[#222] p-4 text-center">
                 <p className="text-2xl font-display font-black text-purple-500 mb-1">{rewards.filter(r => r.status === 'active').length}</p>
@@ -205,17 +308,23 @@ export default function ArtistReferrals({ user, userData }: { user: any, userDat
               <div className="space-y-3">
                 {referrals.length === 0 ? (
                   <div className="p-10 border border-dashed border-[#222] text-center text-gray-600 text-xs font-sans italic">
-                    No referrals yet. Share your code to get started!
+                    No referrals yet. Help your artist friends join Gati!
                   </div>
                 ) : (
                   referrals.map(ref => (
-                    <div key={ref.id} className="bg-[#111] border border-[#222] p-4 flex items-center justify-between">
+                    <div key={ref.id} className="bg-[#111] border border-[#222] p-4 flex items-center justify-between group hover:border-[#333] transition-colors">
                       <div>
-                        <p className="text-xs font-bold text-white font-sans">{ref.refereeEmail}</p>
-                        <p className="text-[9px] text-gray-500 uppercase font-mono mt-1">Joined {new Date(ref.createdAt?.toDate()).toLocaleDateString()}</p>
+                        <p className="text-xs font-bold text-white font-sans">{ref.artistName}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[9px] text-gray-500 uppercase font-mono">@{ref.instagramUsername}</p>
+                          <span className="text-gray-700">•</span>
+                          <p className="text-[9px] text-gray-500 uppercase font-mono">{formatDate(ref.createdAt)}</p>
+                        </div>
                       </div>
-                      <span className={`text-[8px] font-display uppercase tracking-widest px-2 py-1 font-black ${
-                        ref.status === 'successful' ? 'bg-[#ccff00]/10 text-[#ccff00]' : 'bg-yellow-500/10 text-yellow-500'
+                      <span className={`text-[8px] font-display uppercase tracking-widest px-2 py-1 font-black rounded ${
+                        ref.status === 'Reward Unlocked' ? 'bg-[#ccff00]/10 text-[#ccff00]' : 
+                        ref.status === 'Approved' ? 'bg-blue-500/10 text-blue-500' :
+                        'bg-yellow-500/10 text-yellow-500'
                       }`}>
                         {ref.status}
                       </span>
@@ -248,7 +357,7 @@ export default function ArtistReferrals({ user, userData }: { user: any, userDat
                           <p className="text-xs font-bold text-white font-sans">
                             {rew.type === 'free_song' ? 'Free Song Release' : 'Free Monthly Plan'}
                           </p>
-                          <p className="text-[9px] text-gray-500 uppercase font-mono mt-1">Earned {new Date(rew.earnedAt?.toDate()).toLocaleDateString()}</p>
+                          <p className="text-[9px] text-gray-500 uppercase font-mono mt-1">Earned {formatDate(rew.earnedAt)}</p>
                         </div>
                       </div>
                       {rew.status === 'active' ? (

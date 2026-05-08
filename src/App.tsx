@@ -20,7 +20,7 @@ const RefundPage = lazy(() => import('./pages/RefundPage'));
 const SmartLink = lazy(() => import('./pages/artist/SmartLink'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
 const RequestAccount = lazy(() => import('./pages/RequestAccount'));
-const AuthAction = lazy(() => import('./pages/AuthAction'));
+const LabelPanel = lazy(() => import('./pages/LabelPanel'));
 
 import { ErrorProvider } from './components/ErrorProvider';
 import { handleFirestoreError, OperationType } from './firebase';
@@ -129,7 +129,7 @@ export default function App() {
                   downtime={globalSettings.maintenanceDowntime} 
                   supportEmail={globalSettings.supportEmail} 
                 /> : <LandingPage />} />
-              <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : "/dashboard"} replace /> : <LoginPage />} />
+              <Route path="/login" element={user ? <Navigate to={role === 'admin' ? "/admin" : (['label_owner', 'label_manager'].includes(role!) ? "/label" : "/dashboard")} replace /> : <LoginPage />} />
               <Route path="/dashboard/*" element={user && role !== 'admin' ? 
                 (isDashboardMaintenance ? 
                   <Maintenance 
@@ -138,6 +138,9 @@ export default function App() {
                     supportEmail={globalSettings.supportEmail} 
                   /> : <Dashboard user={user} userData={userData} globalSettings={globalSettings} />)
                 : <Navigate to="/login" replace />} />
+              <Route path="/label/*" element={user && ['label_owner', 'label_manager', 'admin'].includes(role!) ? 
+                <LabelPanel user={user} userData={userData} globalSettings={globalSettings} /> : 
+                <Navigate to="/login" replace />} />
               <Route path="/admin/*" element={user && role === 'admin' ? <AdminPanel user={user} userData={userData} /> : <Navigate to="/login" replace />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
@@ -148,7 +151,6 @@ export default function App() {
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogPage />} />
               <Route path="/refund-policy" element={<RefundPage />} />
-              <Route path="/auth-action" element={<AuthAction />} />
               <Route path="/release/:id" element={<SmartLink />} />
               <Route path="/request-account" element={<RequestAccount />} />
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -25,8 +25,10 @@ import {
   Activity,
   Play,
   CheckCheck,
-  TrendingUp
+  TrendingUp,
+  Building2
 } from 'lucide-react';
+import { PLANS, formatPrice } from '../constants/plans';
 
 const WHATSAPP_NUMBER = "917626841258";
 
@@ -572,12 +574,16 @@ export default function LandingPage() {
       {/* Plans & Pricing */}
       <section id="pricing" className="py-32 px-6 md:px-12 bg-[#0A0A0A] relative">
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-20 relative">
-            {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] h-[300px] bg-[#B6FF00]/10 filter blur-[150px] -z-10 rounded-full"></div>
-            
+          <div className="text-center mb-10 relative">
             <h2 className="text-4xl md:text-6xl font-display uppercase tracking-tighter text-white mb-6">Plans & Pricing</h2>
             <p className="text-gray-400 font-sans text-lg max-w-xl mx-auto">Affordable options for every stage of your career. Keep <span className="text-white font-bold">80% of your royalties</span> across all tiers.</p>
+          </div>
+
+          <div className="mb-12 flex justify-center">
+            <div className="inline-flex items-center p-1 bg-[#111] rounded-full border border-white/5">
+               <button className="px-6 py-2 bg-[#B6FF00] text-black rounded-full font-display font-black uppercase text-[10px] tracking-widest">Artist Plans</button>
+               <Link to="/pricing" className="px-6 py-2 text-gray-500 rounded-full font-display font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors">Label Plans <ArrowRight className="inline ml-1" size={12} /></Link>
+            </div>
           </div>
 
           <motion.div 
@@ -585,103 +591,46 @@ export default function LandingPage() {
             initial="hidden" 
             whileInView="show" 
             viewport={{ once: true, amount: 0.1 }}
-            className="grid lg:grid-cols-3 gap-8 items-stretch pt-8"
+            className="grid lg:grid-cols-3 gap-8 items-stretch"
           >
-            <motion.div variants={itemVariants} className="w-full h-full">
-              <PricingCard 
-                name="Basic" price="75" period="/ SONG" tag="95% OFF" highlight colorTheme="blue" isMobile={isMobile}
-                groups={[
-                  {
-                    name: "Distribution Features",
-                    items: [
-                      { text: "Upload to 150+ platforms" },
-                      { text: "Delivery in 2-3 days", subtext: "(If no issues)" }
-                    ]
-                  },
-                  {
-                    name: "Revenue Features",
-                    items: [
-                      { text: "80% royalties to artist", subtext: "(20% cut)" },
-                      { text: "YouTube Content ID", subtext: "Song earns royalties without channel monetization" }
-                    ]
-                  },
-                  {
-                    name: "Support & Services",
-                    items: [
-                      { text: "Metadata & cover checked before release" },
-                      { text: "Release proof links shared after publishing" },
-                      { text: "Free re-upload once if error occurs" },
-                      { text: "WhatsApp chat Standard support" }
-                    ]
-                  }
-                ]}
-              />
-            </motion.div>
-            
-            <motion.div variants={itemVariants} className="w-full h-full">
-              <PricingCard 
-                name="Monthly" price="199" period="/ MONTH" tag="90% OFF" badge="Most Popular" highlight colorTheme="purple" isMobile={isMobile}
-                groups={[
-                  {
-                    name: "Distribution Features",
-                    items: [
-                      { text: "Unlimited song uploads", subtext: "(For 30 days)" },
-                      { text: "Global distribution", subtext: "(Spotify, Apple, JioSaavn, YouTube, etc.)" },
-                      { text: "Release date scheduling", subtext: "Choose your own drop date" },
-                      { text: "Delivery in 2-3 days" }
-                    ]
-                  },
-                  {
-                    name: "Revenue & Verification",
-                    items: [
-                      { text: "YouTube Content ID + IG/FB/Snapchat Music" },
-                      { text: "YouTube verified official artist channel" },
-                      { text: "Spotify Verified Artist Account" },
-                      { text: "Monthly Royalty Report sent on WhatsApp" }
-                    ]
-                  },
-                  {
-                    name: "Support & Promo",
-                    items: [
-                      { text: "Fast-track priority support", subtext: "WhatsApp Chat + Call (Reply under 2 hours)" },
-                      { text: "Basic promo shoutout on IG Story" },
-                      { text: "Artist profile link highlight on IG" }
-                    ]
-                  }
-                ]}
-              />
-            </motion.div>
-
-            <motion.div variants={itemVariants} className="w-full h-full">
-              <PricingCard 
-                name="Yearly" price="999" period="/ YEAR" tag="98% OFF" badge="Best Value" highlight colorTheme="green" isMobile={isMobile}
-                groups={[
-                  {
-                    name: "Distribution Features",
-                    items: [
-                      { text: "Unlimited releases for 12 months" },
-                      { text: "Includes all features of Monthly Plan" }
-                    ]
-                  },
-                  {
-                    name: "Promo Opportunities",
-                    items: [
-                      { text: "Early access to promo opportunities", subtext: "Spotify promotion, YT promo, IG reels, collabs" },
-                      { text: "Custom release strategy & guidance" },
-                      { text: "Featured Artist of the Month chance", subtext: "Promoted on your page" }
-                    ]
-                  },
-                  {
-                    name: "Support Features",
-                    items: [
-                      { text: "Lifetime artist profile verification help", subtext: "If renewed annually" },
-                      { text: "Effective ₹80/Month pricing" }
-                    ]
-                  }
-                ]}
-              />
-            </motion.div>
+            {PLANS.filter(p => !p.name.includes('Label')).map((plan, idx) => (
+              <motion.div key={plan.id} variants={itemVariants} className="w-full h-full">
+                <PricingCard 
+                  name={plan.name} 
+                  price={plan.priceINR.toString()} 
+                  usdPrice={plan.priceUSD.toString()}
+                  period={plan.period} 
+                  tag={idx === 0 ? "95% OFF" : idx === 1 ? "90% OFF" : "98% OFF"} 
+                  badge={plan.name === 'Monthly' ? "Most Popular" : plan.name === 'Yearly' ? "Best Value" : undefined}
+                  highlight 
+                  colorTheme={plan.name === 'Basic' ? "blue" : plan.name === 'Monthly' ? "purple" : "green"} 
+                  isMobile={isMobile}
+                  groups={plan.features.reduce((acc: any[], f: any) => {
+                    const lastGroup = acc[acc.length - 1];
+                    if (!lastGroup || lastGroup.items.length >= 4) {
+                      acc.push({ name: "Plan Features", items: [{ text: f }] });
+                    } else {
+                      lastGroup.items.push({ text: f });
+                    }
+                    return acc;
+                  }, [])}
+                />
+              </motion.div>
+            ))}
           </motion.div>
+
+          <div className="mt-20 p-8 md:p-12 bg-gradient-to-br from-[#111] to-black border border-[#8B5CF6]/30 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-10">
+             <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+                <div className="w-16 h-16 bg-[#8B5CF6]/20 rounded-2xl flex items-center justify-center text-[#8B5CF6] shadow-lg shadow-purple-500/10">
+                   <Building2 size={32} />
+                </div>
+                <div>
+                   <h3 className="text-2xl font-display font-black uppercase tracking-tight text-white mb-2">Music Label & Teams</h3>
+                   <p className="text-gray-400 text-sm max-w-md">Managing a massive roster? Get a dedicated dashboard, unlimited artists, and priority support starting from <span className="text-[#8B5CF6] font-bold">₹599 / $15</span>.</p>
+                </div>
+             </div>
+             <Link to="/pricing" className="px-10 py-5 bg-[#8B5CF6] text-white font-display font-black uppercase tracking-widest rounded-full hover:bg-white hover:text-black transition-all shadow-lg shadow-purple-500/20">Expand Your Label</Link>
+          </div>
         </div>
       </section>
 
@@ -1059,6 +1008,7 @@ interface FeatureGroup {
 interface PricingCardProps {
   name: string;
   price: string;
+  usdPrice: string;
   period: string;
   tag?: string;
   badge?: string;
@@ -1068,7 +1018,7 @@ interface PricingCardProps {
   isMobile?: boolean;
 }
 
-function PricingCard({ name, price, period, tag, badge, highlight, colorTheme = "green", groups, isMobile }: PricingCardProps) {
+function PricingCard({ name, price, usdPrice, period, tag, badge, highlight, colorTheme = "green", groups, isMobile }: PricingCardProps) {
   const themes = {
     green: {
       border: "border-[#B6FF00]/30 hover:border-[#B6FF00]/60 ring-[#B6FF00]/20",
@@ -1132,8 +1082,8 @@ function PricingCard({ name, price, period, tag, badge, highlight, colorTheme = 
       <h3 className="text-2xl font-display uppercase tracking-widest text-[#f5f5f5] mb-2">{name}</h3>
       <div className="mb-4 flex flex-col">
         <div className="flex items-baseline gap-2">
-          <span className={`text-6xl font-display font-black tracking-tighter ${highlight ? `text-transparent bg-clip-text bg-gradient-to-br ${t.text}` : 'text-white'}`}>₹{price}</span>
-          <span className="text-gray-500 font-sans text-sm uppercase tracking-widest">{period}</span>
+          <span className={`text-5xl md:text-6xl font-display font-black tracking-tighter ${highlight ? `text-transparent bg-clip-text bg-gradient-to-br ${t.text}` : 'text-white'}`}>₹{price} <span className="text-[0.4em] opacity-40 font-black">/</span> <span className="text-[0.8em] font-black">${usdPrice}</span></span>
+          <span className="text-gray-500 font-sans text-[10px] md:text-sm uppercase tracking-widest">{period}</span>
         </div>
       </div>
 
