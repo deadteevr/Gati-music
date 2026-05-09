@@ -385,68 +385,22 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
     onStatus: (s: any) => void
   ): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const timestamp = Math.round(new Date().getTime() / 1000);
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'gati_uploads';
     const folder = `gati/${auth.currentUser?.uid}`;
     
-    console.log(`[Cloudinary] Preparing signed upload for: ${file.name} (${type})`);
-    
-    // 1. Get Signature from our backend with retry
-    let sigData;
-    let sigRetries = 2;
-    while (sigRetries >= 0) {
-      try {
-        const sigResponse = await fetch('/api/cloudinary-signature', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            params_to_sign: {
-              timestamp,
-              folder
-            }
-          })
-        });
-        
-        const text = await sigResponse.text();
-        try {
-          sigData = JSON.parse(text);
-        } catch (e) {
-          console.error("[Cloudinary] Raw signature response:", text);
-          throw new Error("Invalid response format from authorization server.");
-        }
-
-        if (!sigResponse.ok) {
-          console.error("[Cloudinary] Signature Error:", sigData);
-          const errorMsg = sigData.details || sigData.error || "Authorization failed";
-          const reqId = sigData.requestId ? ` (Ref: ${sigData.requestId})` : "";
-          throw new Error(`${errorMsg}${reqId}`);
-        }
-        
-        break; // Success!
-      } catch (err: any) {
-        if (sigRetries === 0) {
-          console.error("[Cloudinary] Authorization Fetch Failed after retries:", err);
-          throw new Error(`Upload Authorization Failed: ${err.message}`);
-        }
-        console.warn(`[Cloudinary] Signature fetch failed, retrying... (${sigRetries} left)`);
-        sigRetries--;
-        await new Promise(r => setTimeout(r, 1000));
-      }
+    if (!cloudName) {
+      throw new Error("Cloudinary Cloud Name is not configured (VITE_CLOUDINARY_CLOUD_NAME).");
     }
-    
-    const { signature, apiKey, cloudName: serverCloudName } = sigData;
-    const finalCloudName = serverCloudName || cloudName;
 
-    // 2. Perform Upload with XHR for better progress and domain handling
+    console.log(`[Cloudinary] Starting unsigned upload for: ${file.name} (${type})`);
+    
     return new Promise((resolve, reject) => {
       onStatus('uploading');
       const xhr = new XMLHttpRequest();
       const resourceType = type === 'audio' ? 'video' : 'image';
       
-      xhr.open('POST', `https://api.cloudinary.com/v1_1/${finalCloudName}/${resourceType}/upload`);
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
       
-      // Critical for domain-restricted accounts: Ensure the request identifies itself correctly
-      xhr.withCredentials = false;
-
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const percent = (e.loaded / e.total) * 100;
@@ -470,9 +424,8 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
             console.error(`[Cloudinary] Error Response (${xhr.status}):`, errResp);
             const detail = errResp.error?.message || "Unknown Cloudinary Error";
             onStatus('error');
-            reject(new Error(`Cloudinary Upload Failed (${xhr.status}): ${detail}`));
+            reject(new Error(`Cloudinary Upload Failed: ${detail}`));
           } catch (e) {
-            console.error(`[Cloudinary] Error Response (${xhr.status}):`, xhr.responseText);
             onStatus('error');
             reject(new Error(`Cloudinary Error (${xhr.status}).`));
           }
@@ -481,21 +434,18 @@ export default function ArtistUpload({ user, userData }: { user: any, userData: 
 
       xhr.onerror = () => {
         onStatus('error');
-        reject(new Error("Network Error connecting to Cloudinary. Check your internet."));
+        reject(new Error("Network Error connecting to Cloudinary. Please check your internet."));
       };
 
+      xhr.timeout = 900000; // 15 mins
       xhr.ontimeout = () => {
         onStatus('error');
         reject(new Error("Upload timed out."));
       };
 
-      xhr.timeout = 900000;
-
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('api_key', apiKey);
-      fd.append('timestamp', timestamp.toString());
-      fd.append('signature', signature);
+      fd.append('upload_preset', uploadPreset);
       fd.append('folder', folder);
 
       xhr.send(fd);
