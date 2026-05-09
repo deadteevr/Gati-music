@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -7,16 +6,23 @@ import nodemailer from "nodemailer";
 import crypto from "crypto";
 import dotenv from "dotenv";
 
+// Dynamic import for Vite to avoid production dependency issues
+const getViteServer = async () => {
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer } = await import("vite");
+    return createServer;
+  }
+  return null;
+};
+
 // Load environment variables
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function startServer() {
+export async function createExpressApp() {
   const app = express();
-  const PORT = 3000;
-
   app.use(express.json());
 
   // Email Transport Setup
@@ -92,7 +98,7 @@ async function startServer() {
         console.error(`[Cloudinary][${requestId}] Error: Missing environment variables: ${missingVars.join(", ")}`);
         return res.status(500).json({ 
           error: "Cloudinary configuration missing on server.",
-          details: `The following environment variables are not configured: ${missingVars.join(", ")}. Please check your production environment settings.`,
+          details: `The following environment variables are not configured on Vercel: ${missingVars.join(", ")}. Please check your Vercel Project Settings > Environment Variables.`,
           requestId
         });
       }
@@ -162,13 +168,23 @@ async function startServer() {
     }
   });
 
+  return app;
+}
+
+async function startServer() {
+  const app = await createExpressApp();
+  const PORT = 3000;
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    const createViteServer = await getViteServer();
+    if (createViteServer) {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    }
   } else {
     // Production static serving
     const distPath = path.join(process.cwd(), "dist");
@@ -183,4 +199,7 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the server if this file is run directly (not imported)
+if (process.env.NODE_ENV !== "production" || process.env.RUN_SERVER === "true") {
+  startServer();
+}
