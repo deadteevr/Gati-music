@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, writeBatch, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, writeBatch, getDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Link } from 'react-router-dom';
-import { Search, ChevronRight, Filter, CheckSquare } from 'lucide-react';
+import { Search, ChevronRight, Filter, CheckSquare, Trash2 } from 'lucide-react';
 
 export default function AdminSongs() {
   const [songs, setSongs] = useState<any[]>([]);
@@ -11,6 +11,7 @@ export default function AdminSongs() {
   const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'submissions'));
@@ -23,6 +24,20 @@ export default function AdminSongs() {
     });
     return unsub;
   }, []);
+
+  const handleDeleteSong = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"? This is irreversible.`)) return;
+    
+    setIsDeleting(id);
+    try {
+      await deleteDoc(doc(db, 'submissions', id));
+      alert("Song deleted successfully.");
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `submissions/${id}`);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   const filteredSongs = songs.filter(song => {
     const matchesSearch = 
@@ -216,6 +231,7 @@ export default function AdminSongs() {
                 />
               </th>
               <th className="px-6 py-4">Release</th>
+              <th className="px-6 py-4">Audio</th>
               <th className="px-6 py-4">Main Artist</th>
               <th className="px-6 py-4">Date Submitted</th>
               <th className="px-6 py-4">Status</th>
@@ -245,6 +261,23 @@ export default function AdminSongs() {
                     <span className="font-bold text-white">{song.title || 'Untitled'}</span>
                   </div>
                 </td>
+                <td className="px-6 py-4">
+                  {song.tracks && song.tracks.length > 0 ? (
+                    <audio 
+                      src={song.tracks[0].audioUrl} 
+                      controls 
+                      className="h-6 w-32 filter invert opacity-60 hover:opacity-100 transition-opacity"
+                    />
+                  ) : song.audioUrl ? (
+                    <audio 
+                      src={song.audioUrl} 
+                      controls 
+                      className="h-6 w-32 filter invert opacity-60 hover:opacity-100 transition-opacity"
+                    />
+                  ) : (
+                    <span className="text-[10px] text-red-500 uppercase font-mono">No Audio</span>
+                  )}
+                </td>
                 <td className="px-6 py-4 text-gray-300">
                   {song.mainArtist}
                 </td>
@@ -257,12 +290,22 @@ export default function AdminSongs() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <Link 
-                    to={`/admin/songs/${song.id}`}
-                    className="inline-flex items-center gap-1 text-[#9d4edd] hover:text-white transition-colors uppercase font-display text-xs tracking-widest font-bold bg-[#222] px-3 py-1.5"
-                  >
-                    Manage <ChevronRight size={14} />
-                  </Link>
+                  <div className="flex items-center justify-end gap-3">
+                    <Link 
+                      to={`/admin/songs/${song.id}`}
+                      className="inline-flex items-center gap-1 text-[#9d4edd] hover:text-white transition-colors uppercase font-display text-xs tracking-widest font-bold bg-[#222] px-3 py-1.5"
+                    >
+                      Manage <ChevronRight size={14} />
+                    </Link>
+                    <button 
+                      onClick={() => handleDeleteSong(song.id, song.title)}
+                      disabled={isDeleting === song.id}
+                      className="p-1.5 text-gray-500 hover:text-red-500 transition-colors bg-[#222] border border-[#333] hover:border-red-500/50 disabled:opacity-50"
+                      title="Delete Song"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

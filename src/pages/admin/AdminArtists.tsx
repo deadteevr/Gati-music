@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, setDoc, where, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, where, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link } from 'react-router-dom';
-import { Search, ChevronRight, X, FileText } from 'lucide-react';
+import { Search, ChevronRight, X, FileText, Trash2 } from 'lucide-react';
 
 export default function AdminArtists() {
   const [artists, setArtists] = useState<any[]>([]);
@@ -25,6 +25,10 @@ export default function AdminArtists() {
     spotifyLink: ''
   });
   const [creating, setCreating] = useState(false);
+
+  // Delete Artist State
+  const [deleteArtistConfirm, setDeleteArtistConfirm] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'users'));
@@ -208,6 +212,47 @@ export default function AdminArtists() {
     }
   };
 
+  const handleDeleteArtist = async () => {
+    if (!deleteArtistConfirm) return;
+    
+    setIsDeleting(true);
+    try {
+      const artistUid = deleteArtistConfirm.uid;
+      
+      // 1. Find all songs for this artist and delete them
+      const songsQuery = query(collection(db, 'submissions'), where('uid', '==', artistUid));
+      const songsSnap = await getDocs(songsQuery);
+      for (const songDoc of songsSnap.docs) {
+        await deleteDoc(doc(db, 'submissions', songDoc.id));
+      }
+
+      // 2. Delete royalties records
+      const royaltiesQuery = query(collection(db, 'royalties'), where('artistId', '==', artistUid));
+      const royaltiesSnap = await getDocs(royaltiesQuery);
+      for (const rDoc of royaltiesSnap.docs) {
+        await deleteDoc(doc(db, 'royalties', rDoc.id));
+      }
+
+      // 3. Delete withdrawals
+      const withdrawalsQuery = query(collection(db, 'withdrawals'), where('artistId', '==', artistUid));
+      const withdrawalsSnap = await getDocs(withdrawalsQuery);
+      for (const wDoc of withdrawalsSnap.docs) {
+        await deleteDoc(doc(db, 'withdrawals', wDoc.id));
+      }
+
+      // 4. Finally delete the user document
+      await deleteDoc(doc(db, 'users', artistUid));
+      
+      setDeleteArtistConfirm(null);
+      alert("Artist and all associated data deleted successfully.");
+    } catch (e: any) {
+      alert("Error deleting artist: " + e.message);
+      handleFirestoreError(e, OperationType.DELETE, 'users');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredArtists = artists.filter(a => 
     (a.displayName || '').toLowerCase().includes(search.toLowerCase()) || 
     (a.email || '').toLowerCase().includes(search.toLowerCase())
@@ -272,12 +317,21 @@ export default function AdminArtists() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <Link 
-                    to={`/admin/artists/${artist.uid}`}
-                    className="inline-flex items-center gap-1 text-[#9d4edd] hover:text-white transition-colors uppercase font-display text-xs tracking-widest font-bold"
-                  >
-                    View <ChevronRight size={14} />
-                  </Link>
+                  <div className="flex items-center justify-end gap-4">
+                    <Link 
+                      to={`/admin/artists/${artist.uid}`}
+                      className="inline-flex items-center gap-1 text-[#9d4edd] hover:text-white transition-colors uppercase font-display text-xs tracking-widest font-bold"
+                    >
+                      View <ChevronRight size={14} />
+                    </Link>
+                    <button 
+                      onClick={() => setDeleteArtistConfirm(artist)}
+                      className="text-gray-600 hover:text-red-500 transition-colors p-1"
+                      title="Delete Artist"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -378,6 +432,44 @@ export default function AdminArtists() {
               >
                 {creating ? 'Creating...' : 'Create Account'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteArtistConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="bg-[#111] border border-red-900/30 p-8 max-w-md w-full relative">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mb-2">
+                <Trash2 size={32} />
+              </div>
+              <h2 className="text-2xl font-display uppercase tracking-widest text-white">Delete Artist?</h2>
+              <p className="text-gray-400 text-sm font-sans leading-relaxed">
+                You are about to delete <span className="text-white font-bold">{deleteArtistConfirm.displayName || deleteArtistConfirm.email}</span>. 
+                This will permanently remove their profile, all their songs, royalty records, and withdrawal history.
+              </p>
+              <div className="bg-red-500/5 border border-red-500/20 p-3 w-full">
+                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest">⚠️ Action cannot be undone</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 w-full pt-4">
+                <button 
+                  onClick={() => setDeleteArtistConfirm(null)}
+                  disabled={isDeleting}
+                  className="bg-[#222] text-white py-3 font-display uppercase tracking-widest text-xs font-bold hover:bg-[#333] transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDeleteArtist}
+                  disabled={isDeleting}
+                  className="bg-red-600 text-white py-3 font-display uppercase tracking-widest text-xs font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -84,6 +84,12 @@ export default function AdminSongDetail() {
     }
   };
 
+  const handleTrackMetadataChange = (index: number, field: string, value: any) => {
+    const nextTracks = [...(formData.tracks || [])];
+    nextTracks[index] = { ...nextTracks[index], [field]: value };
+    setFormData({ ...formData, tracks: nextTracks });
+  };
+
   const handleMetadataChange = (e: any) => {
     const { name, value } = e.target;
     // Special handling for array fields
@@ -388,7 +394,7 @@ export default function AdminSongDetail() {
 
             {/* TAB CONTROLS */}
             <div className="flex gap-2 border-b border-[#333] pb-4 mb-6 overflow-x-auto">
-              {['Basic', 'Credits', 'Platform', 'History'].map(tab => (
+              {['Basic', 'Tracks', 'Credits', 'Platform', 'History'].map(tab => (
                  <button 
                    key={tab}
                    onClick={() => setActiveTab(tab)}
@@ -454,6 +460,56 @@ export default function AdminSongDetail() {
                   <div className="col-span-1 md:col-span-2">
                     <Input name="labelName" label="Label Name" value={formData.labelName} onChange={handleMetadataChange} />
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'Tracks' && (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                  {formData.tracks && formData.tracks.length > 0 ? (
+                    formData.tracks.map((track: any, idx: number) => (
+                      <div key={idx} className="p-6 bg-black border border-[#333] space-y-6">
+                        <div className="flex justify-between items-center border-b border-[#222] pb-4">
+                          <h3 className="font-display font-bold uppercase tracking-widest text-[#ccff00]">
+                            Track {track.trackNumber || idx + 1}: {track.title}
+                          </h3>
+                          <div className="flex items-center gap-4">
+                             <div className="flex items-center gap-2">
+                               <label className="text-[10px] text-gray-500 uppercase">Explicit</label>
+                               <input 
+                                 type="checkbox" 
+                                 checked={!!track.isExplicit} 
+                                 onChange={(e) => handleTrackMetadataChange(idx, 'isExplicit', e.target.checked)}
+                                 className="accent-[#ccff00]"
+                               />
+                             </div>
+                          </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <Input label="Track Title" value={track.title} onChange={(e: any) => handleTrackMetadataChange(idx, 'title', e.target.value)} />
+                          <Input label="ISRC" value={track.isrc} onChange={(e: any) => handleTrackMetadataChange(idx, 'isrc', e.target.value)} />
+                          <Input label="Lyricist" value={track.lyricist} onChange={(e: any) => handleTrackMetadataChange(idx, 'lyricist', e.target.value)} />
+                          <Input label="Composer" value={track.composer} onChange={(e: any) => handleTrackMetadataChange(idx, 'composer', e.target.value)} />
+                          <Input label="Producer" value={track.producer} onChange={(e: any) => handleTrackMetadataChange(idx, 'producer', e.target.value)} />
+                          <Input label="Producer Spotify" value={track.producerSpotify} onChange={(e: any) => handleTrackMetadataChange(idx, 'producerSpotify', e.target.value)} />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-display tracking-widest text-gray-500">Lyrics</label>
+                          <textarea 
+                            value={track.lyrics || ''}
+                            onChange={(e) => handleTrackMetadataChange(idx, 'lyrics', e.target.value)}
+                            className="w-full bg-[#0a0a0a] border border-[#333] p-3 text-gray-300 font-sans text-xs focus:border-[#9d4edd] transition-all min-h-[100px] outline-none"
+                            placeholder="Full lyrics..."
+                          />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center p-8 bg-black border border-[#333] text-gray-500">
+                      No track data found in metadata. This might be an old single release.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -604,8 +660,44 @@ export default function AdminSongDetail() {
               </div>
 
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 border-b border-[#222] pb-1">Audio File</p>
-                {song.audioUrl ? (
+                <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 border-b border-[#222] pb-1">Audio Files</p>
+                {/* Check for tracks array (new format) or audioUrl (old format) */}
+                {song.tracks && song.tracks.length > 0 ? (
+                  <div className="space-y-4 mt-4">
+                    {song.tracks.map((track: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-black/40 border border-[#333] space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-display font-bold text-[#ccff00] uppercase tracking-widest">
+                            Track {track.trackNumber || idx + 1}: {track.title}
+                          </span>
+                          {track.isExplicit && <span className="text-[8px] bg-red-500 text-white px-1 font-bold">E</span>}
+                        </div>
+                        {track.audioUrl ? (
+                          <div className="space-y-2">
+                            <audio 
+                              controls 
+                              className="w-full h-8 filter invert opacity-80"
+                              src={track.audioUrl}
+                            >
+                              Your browser does not support the audio element.
+                            </audio>
+                            <a 
+                              href={track.audioUrl} 
+                              download={`Track_${idx + 1}_${track.title}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="flex items-center justify-center gap-2 w-full bg-[#ccff00] text-black hover:bg-white py-2 text-[10px] font-display font-bold uppercase tracking-widest transition-colors"
+                            >
+                              <Download size={12} /> Download Audio
+                            </a>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-red-500 italic">No audio uploaded for this track</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : song.audioUrl ? (
                   <div className="space-y-4">
                     <audio 
                       controls 
@@ -619,7 +711,7 @@ export default function AdminSongDetail() {
                     </a>
                   </div>
                 ) : (
-                   <p className="text-sm text-gray-500 italic">No audio provided.</p>
+                  <p className="text-sm text-gray-500 italic">No audio provided.</p>
                 )}
               </div>
             </div>

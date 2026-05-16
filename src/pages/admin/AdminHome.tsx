@@ -212,7 +212,14 @@ export default function AdminHome() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-bold text-sm bg-[#222] inline-block px-2 py-1 uppercase tracking-widest text-xs mb-2 text-[#9d4edd] border border-[#333]">{activity.status}</p>
-                    <p className="font-sans text-sm text-white">{activity.title} <span className="text-gray-500">by</span> {activity.mainArtist}</p>
+                    <div className="flex flex-col gap-2">
+                      <p className="font-sans text-sm text-white">{activity.title} <span className="text-gray-500">by</span> {activity.mainArtist}</p>
+                      {activity.tracks && activity.tracks.length > 0 ? (
+                        <audio src={activity.tracks[0].audioUrl} controls className="h-4 w-32 filter invert opacity-50" />
+                      ) : activity.audioUrl ? (
+                        <audio src={activity.audioUrl} controls className="h-4 w-32 filter invert opacity-50" />
+                      ) : null}
+                    </div>
                   </div>
                   <span className="text-xs text-gray-500 font-mono">{new Date(activity.createdAt).toLocaleDateString()}</span>
                 </div>
